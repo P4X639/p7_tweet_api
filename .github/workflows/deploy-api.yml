@@ -9,7 +9,7 @@ on:
       - 'api/**'
       - 'services/**'
       - 'Dockerfile'
-      - 'docker-compose.yml'
+      - 'docker compose.yml'
       - 'requirements.txt'
       - '.github/workflows/**'
   
@@ -47,9 +47,9 @@ jobs:
         username: ${{ secrets.DOCKERHUB_USER }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
     
-    - name: Build with docker-compose (like local)
+    - name: Build with docker compose (like local)
       run: |
-        # Creer un .env minimal pour docker-compose build
+        # Creer un .env minimal pour docker compose build
         cat > .env << EOF
         # Variables minimales pour le build Docker
         PROJECT_SLUG=p7-tweet-api
@@ -60,8 +60,8 @@ jobs:
         EOF
         
         # Build exactement comme votre script local
-        echo "Build avec docker-compose (sans cache)..."
-        docker-compose build --no-cache
+        echo "Build avec docker compose (sans cache)..."
+        docker compose build --no-cache
         
         # Verification que l'image est creee
         if docker images | grep -q "p4x639/p7-tweet-api"; then
