@@ -1,0 +1,99 @@
+# Fichiers et dossiers à exclure de l'image Docker
+
+# Cache Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# Environment variables (sauf .env)
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Docker
+Dockerfile*
+docker-compose*
+
+# Logs et données temporaires
+*.log
+logs/
+tensorboard_logs/
+mlruns/
+
+# Données locales (à adapter selon votre projet)
+data/raw/
+data/external/
+*.csv
+*.json
+*.zip
+
+# Modèles volumineux (gardez seulement les nécessaires)
+models/*.h5
+models/*.pb
+models/checkpoints/
+!models/model_best*.keras
+!models/preprocessing_config.json
+
+# Tests
+tests/
+pytest_cache/
+.coverage
+htmlcov/
+
+# Documentation
+docs/
+README.md
+*.md

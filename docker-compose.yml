@@ -1,0 +1,29 @@
+services:
+  api:
+    image: "${IMAGE:-docker.io/p4x639/p7-tweet-api}:${TAG:-latest}"
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: p7_tweet_api
+    ports:
+      - "8000:8000"  # API
+      - "8050:8050"  # Interface Dash
+    env_file:
+      - .env
+    environment:
+      - PYTHONUNBUFFERED=1
+      - TF_ENABLE_ONEDNN_OPTS=0
+      - ENVIRONMENT=development
+    restart: unless-stopped
+    networks:
+      - api-network
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload --log-level info
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"] 
+      interval: 30s
+      timeout: 10s
+      retries: 10
+
+networks:
+  api-network:
+    driver: bridge
