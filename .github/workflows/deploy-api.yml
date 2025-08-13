@@ -60,8 +60,6 @@ jobs:
         cache-to: type=gha,mode=max
     
     - name: Test image locally
-    
-    - name: Delete existing container (if exists)
       run: |
         # Test que l'image se lance correctement
         docker run --rm -d \
@@ -126,6 +124,8 @@ jobs:
         else
           echo "[✓] Groupe de ressources existe"
         fi
+    
+    - name: Delete existing container (if exists)
       run: |
         # Verifier si le container existe
         if az container show \
