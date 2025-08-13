@@ -1,0 +1,267 @@
+name: Deploy p7_tweet_api to Azure
+
+# Declencheurs : quand lancer le workflow
+on:
+  push:
+    branches: [ main ]
+    paths:
+      # Declencher seulement si ces fichiers/dossiers sont modifies
+      - 'api/**'
+      - '.env'
+      - 'services/**'
+      - 'Dockerfile'
+      - 'docker-compose.yml'
+      - 'requirements.txt'
+      - '.github/workflows/**'
+  
+  # Permettre le declenchement manuel depuis l'interface GitHub
+  workflow_dispatch:
+
+# Variables d'environnement globales
+env:
+  DOCKER_IMAGE: docker.io/p4x639/p7-tweet-api
+  DOCKER_TAG: latest
+  AZURE_RESOURCE_GROUP: ${{ secrets.AZ_RESOURCE_GROUP }}
+  AZURE_CONTAINER_NAME: ${{ secrets.AZ_CONTAINER }}
+  AZURE_LOCATION: ${{ secrets.AZ_REGION }}
+
+jobs:
+  # Job 1: Build et Push de l'image Docker
+  build-and-push:
+    name: Build & Push Docker Image
+    runs-on: ubuntu-latest
+    
+    outputs:
+      # Passer l'image tag au job suivant
+      image-tag: ${{ env.DOCKER_IMAGE }}:${{ env.DOCKER_TAG }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Login to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKERHUB_USER }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+    
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./Dockerfile
+        push: true
+        tags: ${{ env.DOCKER_IMAGE }}:${{ env.DOCKER_TAG }}
+        platforms: linux/amd64
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+    
+    - name: Test image locally
+    
+    - name: Delete existing container (if exists)
+      run: |
+        # Test que l'image se lance correctement
+        docker run --rm -d \
+          --name test-container \
+          -p 8000:8000 \
+          -e ENVIRONMENT=test \
+          -e TF_ENABLE_ONEDNN_OPTS=0 \
+          -e PYTHONUNBUFFERED=1 \
+          ${{ env.DOCKER_IMAGE }}:${{ env.DOCKER_TAG }}
+        
+        # Attendre le demarrage
+        sleep 15
+        
+        # Test de sante basique
+        if curl -f http://localhost:8000/health --max-time 10; then
+          echo "[✓] Image fonctionne correctement"
+        else
+          echo "[X] Erreur : Image ne repond pas"
+          docker logs test-container
+          exit 1
+        fi
+        
+        # Nettoyage
+        docker stop test-container
+
+  # Job 2: Deploiement sur Azure (seulement si le build reussit)
+  deploy-to-azure:
+    name: Deploy to Azure Container Instance
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Login to Azure
+      uses: azure/login@v1
+      with:
+        creds: |
+          {
+            "clientId": "${{ secrets.AZ_CLIENT_ID }}",
+            "clientSecret": "${{ secrets.AZ_CLIENT_SECRET }}",
+            "subscriptionId": "${{ secrets.AZ_SUBSCRIPTION_ID }}",
+            "tenantId": "${{ secrets.AZ_TENANT_ID }}"
+          }
+    
+    - name: Set Azure subscription
+      run: |
+        az account set --subscription "${{ secrets.AZ_SUBSCRIPTION_ID }}"
+        echo "Subscription active: $(az account show --query name --output tsv)"
+    
+    - name: Verify Azure configuration
+      run: |
+        echo "Verification du provider Microsoft.ContainerInstance..."
+        PROVIDER_STATE=$(az provider show --namespace Microsoft.ContainerInstance --query registrationState --output tsv)
+        echo "Etat du provider: $PROVIDER_STATE"
+        
+        echo "Verification du groupe de ressources..."
+        if ! az group show --name "${{ env.AZURE_RESOURCE_GROUP }}" &>/dev/null; then
+          echo "[X] Groupe de ressources '${{ env.AZURE_RESOURCE_GROUP }}' non trouve"
+          exit 1
+        else
+          echo "[✓] Groupe de ressources existe"
+        fi
+      run: |
+        # Verifier si le container existe
+        if az container show \
+          --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+          --name ${{ env.AZURE_CONTAINER_NAME }} \
+          --output none 2>/dev/null; then
+          
+          echo "[!] Arret du container existant..."
+          az container stop \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --name ${{ env.AZURE_CONTAINER_NAME }} || true
+          
+          sleep 10
+          
+          echo "[-] Suppression du container existant..."
+          az container delete \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --name ${{ env.AZURE_CONTAINER_NAME }} \
+            --yes
+          
+          echo "Verification de la suppression..."
+          while az container show \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --name ${{ env.AZURE_CONTAINER_NAME }} \
+            --output none 2>/dev/null; do
+            echo "[-] Attente de la suppression complete..."
+            sleep 10
+          done
+          
+          echo "[✓] Container supprime avec succes"
+        else
+          echo "[-] Aucun container existant trouve"
+        fi
+    
+    - name: Deploy new container
+      run: |
+        echo "Configuration du deploiement:"
+        echo "   Resource Group: ${{ env.AZURE_RESOURCE_GROUP }}"
+        echo "   Container Name: ${{ env.AZURE_CONTAINER_NAME }}"
+        echo "   Image: ${{ needs.build-and-push.outputs.image-tag }}"
+        echo "   Location: ${{ env.AZURE_LOCATION }}"
+        echo ""
+        echo "[-] Deploiement du nouveau container..."
+        az container create \
+          --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+          --name ${{ env.AZURE_CONTAINER_NAME }} \
+          --image ${{ needs.build-and-push.outputs.image-tag }} \
+          --cpu 1 \
+          --memory 1 \
+          --os-type Linux \
+          --restart-policy Always \
+          --ip-address Public \
+          --ports 8000 8050 \
+          --environment-variables \
+            'PYTHONUNBUFFERED=1' \
+            'TF_ENABLE_ONEDNN_OPTS=0' \
+            'ENVIRONMENT=production' \
+            'API_HOST=0.0.0.0' \
+            'API_PORT=8000' \
+            'DASH_PORT=8050' \
+          --location ${{ env.AZURE_LOCATION }}
+    
+    - name: Get deployment info
+      run: |
+        echo "[-] Recuperation des informations de deploiement..."
+        sleep 10
+        
+        # Recuperer l'IP publique
+        IP=$(az container show \
+          --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+          --name ${{ env.AZURE_CONTAINER_NAME }} \
+          --query ipAddress.ip \
+          --output tsv)
+        
+        if [ -n "$IP" ]; then
+          echo "[✓] Deploiement reussi !"
+          echo "Votre API Tweet est accessible a:"
+          echo "  - Documentation (FastAPI): http://$IP:8000"
+          echo "  - Documentation (Swagger): http://$IP:8000/docs"
+          echo "  - Interface API: http://$IP:8050"
+          echo "  - Health check: http://$IP:8000/health"
+          echo ""
+          echo "Etat du container:"
+          az container show \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --name ${{ env.AZURE_CONTAINER_NAME }} \
+            --query "{Name:name,State:containers[0].instanceView.currentState.state,IP:ipAddress.ip}" \
+            --output table
+        else
+          echo "[!] IP publique pas encore assignee"
+          echo "Verifiez dans quelques minutes"
+        fi
+    
+    - name: Health check
+      run: |
+        echo "[-] Test de sante du deploiement..."
+        IP=$(az container show \
+          --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+          --name ${{ env.AZURE_CONTAINER_NAME }} \
+          --query ipAddress.ip \
+          --output tsv)
+        
+        if [ -n "$IP" ]; then
+          # Attendre que l'application soit prete
+          echo "[-] Attente du demarrage de l'application..."
+          for i in {1..12}; do
+            if curl -f "http://$IP:8000/health" --max-time 10; then
+              echo "[✓] Application deployee et fonctionnelle !"
+              exit 0
+            else
+              echo "[-] Tentative $i/12 - Application pas encore prete..."
+              sleep 15
+            fi
+          done
+          
+          echo "[!] L'application ne repond pas aux tests de sante"
+          echo "Logs du container:"
+          az container logs \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --name ${{ env.AZURE_CONTAINER_NAME }}
+        fi
+
+  # Job 3: Notification (optionnel)
+  notify:
+    name: Notification
+    runs-on: ubuntu-latest
+    needs: [build-and-push, deploy-to-azure]
+    if: always()  # S'execute meme si les jobs precedents echouent
+    
+    steps:
+    - name: Deployment status
+      run: |
+        if [ "${{ needs.deploy-to-azure.result }}" == "success" ]; then
+          echo "[✓] Deploiement reussi !"
+          echo "[✓] L'API Tweet est maintenant disponible en production"
+        else
+          echo "[X] Deploiement echoue"
+          echo "[-] Verifiez les logs des jobs precedents"
+        fi

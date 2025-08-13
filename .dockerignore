@@ -64,8 +64,8 @@ Thumbs.db
 .gitattributes
 
 # Docker
-Dockerfile*
-docker-compose*
+# Dockerfile*
+# docker-compose*
 
 # Logs et données temporaires
 *.log

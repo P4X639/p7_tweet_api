@@ -34,6 +34,11 @@ check_var "AZ_CLIENT_ID" || VARS_OK=false
 check_var "AZ_CLIENT_SECRET" || VARS_OK=false  
 check_var "AZ_TENANT_ID" || VARS_OK=false
 check_var "AZ_SUBSCRIPTION_ID" || VARS_OK=false
+check_var "AZ_RESOURCE_GROUP" || VARS_OK=false
+check_var "AZ_CONTAINER" || VARS_OK=false
+check_var "AZ_REGION" || VARS_OK=false
+check_var "DOCKERHUB_IMAGE_NAME" || VARS_OK=false
+
 
 if [ "$VARS_OK" = false ]; then
     echo "Variables d'environnement manquantes"
@@ -117,10 +122,10 @@ echo ""
 echo "=== DÉPLOIEMENT DU CONTAINER ==="
 
 # Configuration du container
-RESOURCE_GROUP="tweet-api-group"
-CONTAINER_NAME="tweet-api-container"
-IMAGE_NAME="p4x639/p7-tweet-api:latest"
-LOCATION="francecentral"
+RESOURCE_GROUP=$AZ_RESOURCE_GROUP
+CONTAINER_NAME=$AZ_CONTAINER
+IMAGE_NAME=$DOCKERHUB_IMAGE_NAME
+LOCATION=$AZ_REGION
 
 echo "Configuration du déploiement:"
 echo "   Resource Group: $RESOURCE_GROUP"
