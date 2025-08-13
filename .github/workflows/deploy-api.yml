@@ -32,7 +32,7 @@ jobs:
     
     outputs:
       # Passer l'image tag au job suivant
-      image-tag: ${{ env.DOCKER_IMAGE }}:${{ env.DOCKER_TAG }}
+      image-tag: docker.io/p4x639/p7-tweet-api:latest
     
     steps:
     - name: Checkout code
@@ -277,7 +277,7 @@ jobs:
             --name ${{ env.AZURE_CONTAINER_NAME }}
         fi
 
-  # Job 3: Notification
+  # Job 3: Notification (optionnel)
   notify:
     name: Notification
     runs-on: ubuntu-latest
