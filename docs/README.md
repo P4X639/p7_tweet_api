@@ -72,14 +72,7 @@ p7_tweet_api/
 
 ### Azure Container Instances
 ```bash
-az container create \
-  --resource-group your-rg \
-  --name sentiment-platform \
-  --image your-registry.azurecr.io/sentiment-platform:v1.0 \
-  --ports 80 \
-  --environment-variables PORT=80 DAGSHUB_USERNAME=your-username DAGSHUB_REPO=your-repo \
-  --secure-environment-variables DAGSHUB_TOKEN=your-token \
-  --cpu 1 --memory 2
+az container create ...
 ```
 
 ### Azure Container Apps
