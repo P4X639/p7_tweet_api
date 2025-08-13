@@ -223,6 +223,11 @@ async def root():
         config_status=config_status
     )
 
+@app.get("/healthcheck", include_in_schema=False)
+async def healthcheck():
+    """Endpoint simple pour tests CI/CD - indépendant du service API"""
+    return {"status": "ok", "service": "p7-tweet-api"}
+
 @app.get("/health", response_model=HealthResponse)
 async def health_check():
     """Health check de l'API - statut complet des services"""

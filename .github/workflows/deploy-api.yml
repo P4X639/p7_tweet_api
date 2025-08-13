@@ -9,7 +9,7 @@ on:
       - 'api/**'
       - 'services/**'
       - 'Dockerfile'
-      - 'docker compose.yml'
+      - 'docker-compose.yml'
       - 'requirements.txt'
       - '.github/workflows/**'
   
@@ -47,7 +47,7 @@ jobs:
         username: ${{ secrets.DOCKERHUB_USER }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
     
-    - name: Build with docker compose (like local)
+    - name: Build with docker-compose (like local)
       run: |
         # Creer un .env minimal pour docker compose build
         cat > .env << EOF
@@ -59,7 +59,7 @@ jobs:
         PYTHONUNBUFFERED=1
         EOF
         
-        # Build exactement comme votre script local
+        # Build exactement comme votre script local (avec Docker Compose V2)
         echo "Build avec docker compose (sans cache)..."
         docker compose build --no-cache
         
@@ -85,16 +85,23 @@ jobs:
           -e ENVIRONMENT=test \
           -e TF_ENABLE_ONEDNN_OPTS=0 \
           -e PYTHONUNBUFFERED=1 \
+          -e MODEL_RUN_ID=test-mode \
+          -e DAGSHUB_TOKEN=test-token \
+          -e DAGSHUB_USERNAME=test \
+          -e DAGSHUB_REPO=test \
+          -e MLFLOW_TRACKING_URI=test \
           ${{ env.DOCKER_IMAGE }}:${{ env.DOCKER_TAG }}
         
-        # Attendre le demarrage
-        sleep 15
+        # Attendre le demarrage plus longtemps
+        echo "[-] Attente du demarrage (30 secondes)..."
+        sleep 30
         
         # Test de sante basique
-        if curl -f http://localhost:8000/health --max-time 10; then
+        if curl -f http://localhost:8000/healthcheck --max-time 10; then
           echo "[✓] Image fonctionne correctement"
         else
           echo "[X] Erreur : Image ne repond pas"
+          echo "Logs du container:"
           docker logs test-container
           exit 1
         fi
@@ -203,6 +210,11 @@ jobs:
             'API_HOST=0.0.0.0' \
             'API_PORT=8000' \
             'DASH_PORT=8050' \
+            'MODEL_RUN_ID=${{ secrets.MODEL_RUN_ID }}' \
+            'DAGSHUB_TOKEN=${{ secrets.DAGSHUB_TOKEN }}' \
+            'DAGSHUB_USERNAME=${{ secrets.DAGSHUB_USERNAME }}' \
+            'DAGSHUB_REPO=${{ secrets.DAGSHUB_REPO }}' \
+            'MLFLOW_TRACKING_URI=${{ secrets.MLFLOW_TRACKING_URI }}' \
           --location ${{ env.AZURE_LOCATION }}
     
     - name: Get deployment info
@@ -223,7 +235,7 @@ jobs:
           echo "  - Documentation (FastAPI): http://$IP:8000"
           echo "  - Documentation (Swagger): http://$IP:8000/docs"
           echo "  - Interface API: http://$IP:8050"
-          echo "  - Health check: http://$IP:8000/health"
+          echo "  - Health check: http://$IP:8000/healthcheck"
           echo ""
           echo "Etat du container:"
           az container show \
@@ -249,7 +261,7 @@ jobs:
           # Attendre que l'application soit prete
           echo "[-] Attente du demarrage de l'application..."
           for i in {1..12}; do
-            if curl -f "http://$IP:8000/health" --max-time 10; then
+            if curl -f "http://$IP:8000/healthcheck" --max-time 10; then
               echo "[✓] Application deployee et fonctionnelle !"
               exit 0
             else
@@ -265,7 +277,7 @@ jobs:
             --name ${{ env.AZURE_CONTAINER_NAME }}
         fi
 
-  # Job 3: Notification (optionnel)
+  # Job 3: Notification
   notify:
     name: Notification
     runs-on: ubuntu-latest
