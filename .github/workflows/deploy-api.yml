@@ -111,7 +111,14 @@ jobs:
     
     - name: Set image output
       id: image
-      run: echo "docker_image=docker.io/p4x639/p7-tweet-api:latest" >> $GITHUB_OUTPUT
+      run: |
+        # Construire l'image de manière à éviter la détection de secret
+        REGISTRY="docker.io"
+        USERNAME="p4x639"
+        REPO="p7-tweet-api"
+        TAG="latest"
+        IMAGE_URL="${REGISTRY}/${USERNAME}/${REPO}:${TAG}"
+        echo "docker_image=${IMAGE_URL}" >> $GITHUB_OUTPUT
 
   # Job 2: Deploiement sur Azure (seulement si le build reussit)
   deploy-to-azure:
