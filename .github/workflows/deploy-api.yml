@@ -32,7 +32,7 @@ jobs:
     
     outputs:
       # Passer l'image tag au job suivant
-      image-tag: ${{ steps.image.outputs.tag }}
+      image-tag: ${{ steps.image.outputs.docker_image }}
     
     steps:
     - name: Checkout code
@@ -111,7 +111,7 @@ jobs:
     
     - name: Set image output
       id: image
-      run: echo "tag=docker.io/p4x639/p7-tweet-api:latest" >> $GITHUB_OUTPUT
+      run: echo "docker_image=docker.io/p4x639/p7-tweet-api:latest" >> $GITHUB_OUTPUT
 
   # Job 2: Deploiement sur Azure (seulement si le build reussit)
   deploy-to-azure:
@@ -193,14 +193,14 @@ jobs:
         echo "Configuration du deploiement:"
         echo "   Resource Group: ${{ env.AZURE_RESOURCE_GROUP }}"
         echo "   Container Name: ${{ env.AZURE_CONTAINER_NAME }}"
-        echo "   Image: docker.io/p4x639/p7-tweet-api:latest"
+        echo "   Image: ${{ needs.build-and-push.outputs.image-tag }}"
         echo "   Location: ${{ env.AZURE_LOCATION }}"
         echo ""
         echo "[-] Deploiement du nouveau container..."
         az container create \
           --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
           --name ${{ env.AZURE_CONTAINER_NAME }} \
-          --image docker.io/p4x639/p7-tweet-api:latest \
+          --image ${{ needs.build-and-push.outputs.image-tag }} \
           --cpu 1 \
           --memory 1 \
           --os-type Linux \
