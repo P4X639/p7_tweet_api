@@ -292,5 +292,5 @@ jobs:
           echo "[✓] L'API Tweet est maintenant disponible en production"
         else
           echo "[X] Deploiement echoue"
-          echo "[-] Verifiez les logs des jobs precedents"
+          echo "[-] Verifiez les logs des jobs precedents (v24)"
         fi
