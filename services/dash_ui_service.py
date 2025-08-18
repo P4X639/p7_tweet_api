@@ -386,26 +386,8 @@ class DashUIService:
                     html.Div(id="admin-azure-insights", className="mb-4"),
                     
                     # Tests et diagnostics
-                    html.H5("Tests et Diagnostics", style={'color': styles['colors']['text_primary'], 'fontWeight': '600'}),
+                    html.H5("Actions", style={'color': styles['colors']['text_primary'], 'fontWeight': '600'}),
                     dbc.Row([
-                        dbc.Col([
-                            dbc.Button([
-                                html.I(className="fas fa-flask me-2"),
-                                "Tester le Tokenizer"
-                            ], id="test-tokenizer-btn", color="info", className="w-100 mb-2")
-                        ], width=3),
-                        dbc.Col([
-                            dbc.Button([
-                                html.I(className="fas fa-heartbeat me-2"),
-                                "Health Check"
-                            ], id="health-check-btn", color="success", className="w-100 mb-2")
-                        ], width=3),
-                        dbc.Col([
-                            dbc.Button([
-                                html.I(className="fas fa-download me-2"),
-                                "Export Config"
-                            ], id="export-config-btn", color="secondary", className="w-100 mb-2")
-                        ], width=3),
                         dbc.Col([
                             dbc.Button([
                                 html.I(className="fas fa-sync-alt me-2"),
@@ -622,36 +604,22 @@ class DashUIService:
             return (admin_info[0], admin_info[1], admin_info[2], admin_info[3], 
                     version_deployment, azure_insights)
         
-        # Callbacks pour les tests admin
+        # Callbacks pour le/les Actions - page admin
         @self.app.callback(
             [Output('admin-test-results', 'children'),
              Output('admin-azure-insights', 'children', allow_duplicate=True)],
-            [Input('test-tokenizer-btn', 'n_clicks'),
-             Input('health-check-btn', 'n_clicks'),
-             Input('export-config-btn', 'n_clicks'),
-             Input('refresh-stats-btn', 'n_clicks')],
+            Input('refresh-stats-btn', 'n_clicks'),
             prevent_initial_call=True
         )
-        def handle_admin_tests(test_tok, health, export, refresh):
-            ctx = callback_context
-            if not ctx.triggered:
+        def handle_admin_tests(refresh):
+
+            if not refresh:
                 return "", dash.no_update
-            
-            button_id = ctx.triggered[0]['prop_id'].split('.')[0]
-            
-            if button_id == 'test-tokenizer-btn':
-                return self._test_tokenizer(), dash.no_update
-            elif button_id == 'health-check-btn':
-                return self._perform_health_check(), dash.no_update
-            elif button_id == 'export-config-btn':
-                return self._export_config(), dash.no_update
-            elif button_id == 'refresh-stats-btn':
-                # Rafraîchir les statistiques Azure
-                styles = self._get_professional_styles()
-                refreshed_azure = self._create_azure_insights_card(styles)
-                return "Statistiques Azure rafraîchies avec succès!", refreshed_azure
-            
-            return "", dash.no_update
+            # Rafraîchir uniquement la carte Azure
+            styles = self._get_professional_styles()
+            refreshed_azure = self._create_azure_insights_card(styles)
+            return "Statistiques Azure rafraîchies avec succès!", refreshed_azure
+
     
     def _check_api_status(self):
         """Vérifier le statut de l'API"""
@@ -1484,43 +1452,6 @@ class DashUIService:
             'boxShadow': '0 1px 3px rgba(0,0,0,0.1)'
         })
     
-    def _test_tokenizer(self):
-        """Test du tokenizer via l'endpoint de debug"""
-        try:
-            response = requests.get(f"{self.api_base_url}/debug/tokenizer", timeout=10)
-            if response.status_code == 200:
-                data = response.json()
-                return self._format_test_result("Test Tokenizer", data, True)
-            else:
-                error_data = {"error": f"Status {response.status_code}", "details": response.text}
-                return self._format_test_result("Test Tokenizer", error_data, False)
-        except Exception as e:
-            error_data = {"error": str(e), "type": "connection_error"}
-            return self._format_test_result("Test Tokenizer", error_data, False)
-    
-    def _perform_health_check(self):
-        """Health check complet du système"""
-        try:
-            response = requests.get(f"{self.api_base_url}/health", timeout=10)
-            if response.status_code == 200:
-                data = response.json()
-                return self._format_test_result("Health Check", data, True)
-            else:
-                return self._format_test_result("Health Check", {"error": f"Status {response.status_code}"}, False)
-        except Exception as e:
-            return self._format_test_result("Health Check", {"error": str(e)}, False)
-    
-    def _export_config(self):
-        """Export de la configuration système"""
-        try:
-            response = requests.get(f"{self.api_base_url}/debug/config", timeout=10)
-            if response.status_code == 200:
-                data = response.json()
-                return self._format_test_result("Export configuration", data, True)
-            else:
-                return self._format_test_result("Export configuration", {"error": f"Status {response.status_code}"}, False)
-        except Exception as e:
-            return self._format_test_result("Export configuration", {"error": str(e)}, False)
     
     def _format_test_result(self, test_name, data, success):
         """Formate le résultat d'un test administratif"""

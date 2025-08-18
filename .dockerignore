@@ -77,7 +77,6 @@ mlruns/
 data/raw/
 data/external/
 *.csv
-*.json
 *.zip
 
 # Modèles volumineux (gardez seulement les nécessaires)
