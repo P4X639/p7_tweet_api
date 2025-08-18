@@ -121,3 +121,7 @@ tensorboard_logs/
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+version_info.json
+*Copie
+utils/

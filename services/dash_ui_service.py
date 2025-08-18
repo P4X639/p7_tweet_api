@@ -11,16 +11,22 @@ from datetime import datetime
 import uuid
 import threading
 import logging
+import os
 
 logger = logging.getLogger(__name__)
 
 class DashUIService:
     """Service pour gérer l'interface utilisateur Dash avec design professionnel"""
     
-    def __init__(self, api_base_url="http://localhost:8000"):
+    # constructeur de DashUIService
+    def __init__(self, api_base_url="http://localhost:8000", azure_insights_service=None):
         self.api_base_url = api_base_url
+        self.api_base = os.getenv("API_BASE_URL", "http://localhost:8000").rstrip("/")
+        self.azure_insights_service = azure_insights_service
         self.prediction_history = []
         self.feedback_history = []
+        self._http = requests.Session()
+        self._http.headers.update({"Content-Type": "application/json"})
         
         # Initialisation de l'app Dash avec thème Bootstrap
         self.app = dash.Dash(
@@ -32,6 +38,38 @@ class DashUIService:
         
         self._setup_layout()
         self._setup_callbacks()
+    
+    def _send_feedback_to_api(self, feedback_payload: dict) -> dict:
+        """
+        Envoie le feedback à l’API FastAPI /feedback
+        """
+        url = f"{self.api_base}/feedback"
+        resp = self._http.post(url, json=feedback_payload, timeout=10)
+        resp.raise_for_status()
+        return resp.json()
+
+    # Si vous avez déjà une méthode publique qui construit le payload, gardez-la.
+    # Exemple minimal où l’on construit et envoie le feedback puis logge Azure.
+    def send_feedback(self, user_id: str, prediction_id: str, label: str, comment: str = "") -> dict:
+        payload = {
+            "user_id": user_id,
+            "prediction_id": prediction_id,
+            "label": label,
+            "comment": comment or "",
+        }
+        try:
+            api_resp = self._send_feedback_to_api(payload)
+            if self.azure:
+                try:
+                    self.azure.log_feedback(payload)  # voir §2
+                    logger.info("[AZURE] Feedback loggé pour user %s", user_id)
+                except Exception as az_err:
+                    logger.warning("Feedback envoyé à l'API mais échec log Azure: %s", az_err)
+            return api_resp
+        except Exception as e:
+            logger.error("Erreur envoi feedback: %s", e, exc_info=True)
+            raise
+    
     
     def _get_professional_styles(self):
         """Définit les styles CSS professionnels en tons bleus"""
@@ -339,6 +377,14 @@ class DashUIService:
                     html.H5("Configuration détaillée", style={'color': styles['colors']['text_primary'], 'fontWeight': '600'}),
                     html.Div(id="admin-detailed-config", className="mb-4"),
                     
+                    # Version et Déploiement
+                    html.H5("Version et Déploiement", style={'color': styles['colors']['text_primary'], 'fontWeight': '600'}),
+                    html.Div(id="admin-version-deployment", className="mb-4"),
+                    
+                    # Azure Application Insights
+                    html.H5("Azure Application Insights", style={'color': styles['colors']['text_primary'], 'fontWeight': '600'}),
+                    html.Div(id="admin-azure-insights", className="mb-4"),
+                    
                     # Tests et diagnostics
                     html.H5("Tests et Diagnostics", style={'color': styles['colors']['text_primary'], 'fontWeight': '600'}),
                     dbc.Row([
@@ -347,26 +393,32 @@ class DashUIService:
                                 html.I(className="fas fa-flask me-2"),
                                 "Tester le Tokenizer"
                             ], id="test-tokenizer-btn", color="info", className="w-100 mb-2")
-                        ], width=4),
+                        ], width=3),
                         dbc.Col([
                             dbc.Button([
                                 html.I(className="fas fa-heartbeat me-2"),
                                 "Health Check"
                             ], id="health-check-btn", color="success", className="w-100 mb-2")
-                        ], width=4),
+                        ], width=3),
                         dbc.Col([
                             dbc.Button([
                                 html.I(className="fas fa-download me-2"),
                                 "Export Config"
                             ], id="export-config-btn", color="secondary", className="w-100 mb-2")
-                        ], width=4)
+                        ], width=3),
+                        dbc.Col([
+                            dbc.Button([
+                                html.I(className="fas fa-sync-alt me-2"),
+                                "Actualiser Stats"
+                            ], id="refresh-stats-btn", color="primary", className="w-100 mb-2")
+                        ], width=3)
                     ]),
-                    
+                  
                     html.Div(id="admin-test-results", className="mt-3")
                 ], style={'padding': '2rem'})
             ], style=styles['content_section'])
         ], fluid=True, style={'padding': '2rem 0'})
-    
+       
     def _setup_callbacks(self):
         """Configuration des callbacks Dash avec gestion du feedback utilisateur"""
         
@@ -452,6 +504,20 @@ class DashUIService:
             
             return self._process_prediction_result(text, result)
         
+        # traitement du feedback pour appeler l'API
+        def _send_feedback_to_api(self, feedback_data):
+            """Envoyer le feedback à l'API pour logging Azure"""
+            try:
+                response = requests.post(
+                    f"{self.api_base_url}/feedback",
+                    json=feedback_data,
+                    timeout=5
+                )
+                return response.status_code == 200
+            except Exception as e:
+                logger.error(f"Erreur envoi feedback API: {e}")
+                return False
+
         # Callback pour gérer le feedback utilisateur
         @self.app.callback(
             [Output('accuracy-score', 'children', allow_duplicate=True),
@@ -482,11 +548,50 @@ class DashUIService:
             else:
                 return dash.no_update, dash.no_update
             
-            # Enregistrer le feedback (une seule fois)
-            self.feedback_history.append({
+            # Extraire prediction_id depuis l'ID du bouton
+            try:
+                import json
+                button_info = json.loads(prop_id.split('.')[0])
+                prediction_id = button_info.get('index', 'unknown')
+            except:
+                prediction_id = 'unknown'
+            
+            # Trouver la prédiction correspondante pour enrichir les données
+            prediction_info = None
+            for pred in self.prediction_history:
+                if pred.get('prediction_id') == prediction_id:
+                    prediction_info = pred
+                    break
+            
+            # Enregistrer le feedback localement
+            feedback_record = {
                 'timestamp': datetime.now(),
-                'feedback': feedback_type
-            })
+                'feedback': feedback_type,
+                'prediction_id': prediction_id
+            }
+            self.feedback_history.append(feedback_record)
+            
+            # Préparer les données pour l'API
+            feedback_data = {
+                'feedback_type': feedback_type,
+                'prediction_id': prediction_id,
+                'timestamp': datetime.now().isoformat(),
+                'user_id': 'dash_user'
+            }
+            
+            # Ajouter les informations de la prédiction originale si disponibles
+            if prediction_info:
+                feedback_data.update({
+                    'original_sentiment': prediction_info.get('sentiment'),
+                    'original_confidence': prediction_info.get('confidence'),
+                    'original_text': prediction_info.get('text', '')
+                })
+            
+            # Envoyer à l'API pour logging Azure (non bloquant)
+            try:
+                self._send_feedback_to_api(feedback_data)
+            except Exception as e:
+                logger.error(f"Erreur envoi feedback: {e}")
             
             # Calculer les nouvelles métriques
             total_feedback = len(self.feedback_history)
@@ -500,38 +605,53 @@ class DashUIService:
             [Output('admin-system-status', 'children'),
              Output('admin-version-compatibility', 'children'),
              Output('admin-model-info', 'children'),
-             Output('admin-detailed-config', 'children')],
+             Output('admin-detailed-config', 'children'),
+             Output('admin-version-deployment', 'children'),
+             Output('admin-azure-insights', 'children')],
             Input('url', 'pathname')
         )
         def update_admin_info(pathname):
             if pathname != '/admin':
                 return dash.no_update
             
-            return self._get_admin_info()
+            admin_info = self._get_admin_info()
+            styles = self._get_professional_styles()
+            version_deployment = self._create_version_deployment_card(styles)
+            azure_insights = self._create_azure_insights_card(styles)
+            
+            return (admin_info[0], admin_info[1], admin_info[2], admin_info[3], 
+                    version_deployment, azure_insights)
         
         # Callbacks pour les tests admin
         @self.app.callback(
-            Output('admin-test-results', 'children'),
+            [Output('admin-test-results', 'children'),
+             Output('admin-azure-insights', 'children', allow_duplicate=True)],
             [Input('test-tokenizer-btn', 'n_clicks'),
              Input('health-check-btn', 'n_clicks'),
-             Input('export-config-btn', 'n_clicks')],
+             Input('export-config-btn', 'n_clicks'),
+             Input('refresh-stats-btn', 'n_clicks')],
             prevent_initial_call=True
         )
-        def handle_admin_tests(test_tok, health, export):
+        def handle_admin_tests(test_tok, health, export, refresh):
             ctx = callback_context
             if not ctx.triggered:
-                return ""
+                return "", dash.no_update
             
             button_id = ctx.triggered[0]['prop_id'].split('.')[0]
             
             if button_id == 'test-tokenizer-btn':
-                return self._test_tokenizer()
+                return self._test_tokenizer(), dash.no_update
             elif button_id == 'health-check-btn':
-                return self._perform_health_check()
+                return self._perform_health_check(), dash.no_update
             elif button_id == 'export-config-btn':
-                return self._export_config()
+                return self._export_config(), dash.no_update
+            elif button_id == 'refresh-stats-btn':
+                # Rafraîchir les statistiques Azure
+                styles = self._get_professional_styles()
+                refreshed_azure = self._create_azure_insights_card(styles)
+                return "Statistiques Azure rafraîchies avec succès!", refreshed_azure
             
-            return ""
+            return "", dash.no_update
     
     def _check_api_status(self):
         """Vérifier le statut de l'API"""
@@ -558,7 +678,7 @@ class DashUIService:
                 return False, {"error": f"Status {response.status_code}: {response.text}"}
         except Exception as e:
             return False, {"error": str(e)}
-    
+            
     def _process_prediction_result(self, text, result):
         """Traiter et formater le résultat de prédiction"""
         styles = self._get_professional_styles()
@@ -626,14 +746,15 @@ class DashUIService:
             ], style={'padding': '1rem'})
         ], style=styles['content_section'])
         
-        # Ajouter à l'historique
-        self.prediction_history.append({
+        # Ajouter à l'historique avec prediction_id
+        prediction_record = {
             'timestamp': datetime.now(),
             'text': text,
             'sentiment': sentiment,
             'confidence': confidence,
             'prediction_id': prediction_id
-        })
+        }
+        self.prediction_history.append(prediction_record)
         
         # Mise à jour des statistiques
         total_preds = len(self.prediction_history)
@@ -679,6 +800,7 @@ class DashUIService:
         
         # Graphique des sentiments
         if self.prediction_history:
+            import pandas as pd
             sentiment_counts = pd.Series([p['sentiment'] for p in self.prediction_history]).value_counts()
             colors = [styles['colors']['success'] if s == 'positive' else styles['colors']['danger'] for s in sentiment_counts.index]
             
@@ -698,6 +820,7 @@ class DashUIService:
             )
             fig.update_traces(textfont_size=12, marker=dict(line=dict(color='#ffffff', width=2)))
         else:
+            import plotly.graph_objects as go
             fig = go.Figure()
             fig.add_annotation(
                 text="Aucune donnée", 
@@ -1063,6 +1186,251 @@ class DashUIService:
         return html.Div([
             html.Table([
                 html.Tbody(info_rows)
+            ], className="table table-sm", style={'marginBottom': '0'})
+        ], style={
+            'padding': '1.5rem',
+            'backgroundColor': '#ffffff',
+            'border': f"1px solid {styles['colors']['border']}",
+            'boxShadow': '0 1px 3px rgba(0,0,0,0.1)'
+        })
+    
+    def _load_version_info(self):
+        """Charger les informations de version depuis le fichier JSON"""
+        try:
+            with open('/app/version_info.json', 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception as e:
+            return {
+                "error": f"Impossible de charger version_info.json: {str(e)}",
+                "fetch_info": {"github_repo": {"owner": "N/A", "repo": "N/A"}, "branch": "N/A"},
+                "commit_id": "N/A",
+                "commit_date": "N/A",
+                "files": []
+            }
+
+    def _create_version_deployment_card(self, styles):
+        """Créer la carte Version et Déploiement"""
+        version_info = self._load_version_info()
+        
+        # Variables d'environnement Azure
+        env_vars = {
+            'AZ_RESOURCE_GROUP': os.getenv('AZ_RESOURCE_GROUP', 'N/A'),
+            'AZ_CONTAINER': os.getenv('AZ_CONTAINER', 'N/A'),
+            'AZ_REGION': os.getenv('AZ_REGION', 'N/A'),
+            'IMAGE': os.getenv('IMAGE', 'N/A'),
+            'ENVIRONMENT': os.getenv('ENVIRONMENT', 'production')
+        }
+        
+        github_info = version_info.get('fetch_info', {}).get('github_repo', {})
+        
+        deployment_rows = []
+        
+        # Informations GitHub
+        deployment_rows.extend([
+            html.Tr([
+                html.Td(html.Strong("Repository GitHub", style={'color': styles['colors']['primary']}), colSpan=2)
+            ]),
+            html.Tr([
+                html.Td("Owner:", style={'paddingLeft': '2rem', 'fontWeight': '500', 'width': '40%'}),
+                html.Td(github_info.get('owner', 'N/A'))
+            ]),
+            html.Tr([
+                html.Td("Repository:", style={'paddingLeft': '2rem', 'fontWeight': '500'}),
+                html.Td(github_info.get('repo', 'N/A'))
+            ]),
+            html.Tr([
+                html.Td("Branch:", style={'paddingLeft': '2rem', 'fontWeight': '500'}),
+                html.Td(version_info.get('fetch_info', {}).get('branch', 'N/A'))
+            ]),
+            html.Tr([
+                html.Td("Commit ID:", style={'paddingLeft': '2rem', 'fontWeight': '500'}),
+                html.Td(version_info.get('commit_id', 'N/A'))
+            ]),
+            html.Tr([
+                html.Td("Date commit:", style={'paddingLeft': '2rem', 'fontWeight': '500'}),
+                html.Td(version_info.get('commit_date', 'N/A'))
+            ])
+        ])
+        
+        # Informations Azure
+        deployment_rows.extend([
+            html.Tr([
+                html.Td(html.Strong("Déploiement Azure", style={'color': styles['colors']['primary']}), colSpan=2)
+            ]),
+            html.Tr([
+                html.Td("Resource Group:", style={'paddingLeft': '2rem', 'fontWeight': '500'}),
+                html.Td(env_vars['AZ_RESOURCE_GROUP'])
+            ]),
+            html.Tr([
+                html.Td("Container:", style={'paddingLeft': '2rem', 'fontWeight': '500'}),
+                html.Td(env_vars['AZ_CONTAINER'])
+            ]),
+            html.Tr([
+                html.Td("Region:", style={'paddingLeft': '2rem', 'fontWeight': '500'}),
+                html.Td(env_vars['AZ_REGION'])
+            ]),
+            html.Tr([
+                html.Td("Image Docker:", style={'paddingLeft': '2rem', 'fontWeight': '500'}),
+                html.Td(env_vars['IMAGE'])
+            ]),
+            html.Tr([
+                html.Td("Environment:", style={'paddingLeft': '2rem', 'fontWeight': '500'}),
+                html.Td(env_vars['ENVIRONMENT'])
+            ])
+        ])
+        
+        # Fichiers modifiés (derniers 5)
+        files = version_info.get('files', [])[:5]
+        if files:
+            deployment_rows.append(
+                html.Tr([
+                    html.Td(html.Strong("Fichiers modifiés (derniers commits)", style={'color': styles['colors']['primary']}), colSpan=2)
+                ])
+            )
+            
+            for file_info in files:
+                status_color = {
+                    'A': styles['colors']['success'],  # Ajouté
+                    'M': styles['colors']['warning'],  # Modifié
+                    'D': styles['colors']['danger']    # Supprimé
+                }.get(file_info.get('status', 'M'), styles['colors']['text_secondary'])
+                
+                deployment_rows.append(
+                    html.Tr([
+                        html.Td(
+                            f"[{file_info.get('status', '?')}] {file_info.get('file', 'unknown')}",
+                            style={'paddingLeft': '2rem', 'fontSize': '0.85rem', 'fontFamily': 'monospace'}
+                        ),
+                        html.Td(
+                            file_info.get('date', 'N/A'),
+                            style={'fontSize': '0.85rem', 'color': status_color}
+                        )
+                    ])
+                )
+        
+        return html.Div([
+            html.Table([
+                html.Tbody(deployment_rows)
+            ], className="table table-sm", style={'marginBottom': '0'})
+        ], style={
+            'padding': '1.5rem',
+            'backgroundColor': '#ffffff',
+            'border': f"1px solid {styles['colors']['border']}",
+            'boxShadow': '0 1px 3px rgba(0,0,0,0.1)'
+        })
+
+    def _create_azure_insights_card(self, styles):
+        """Créer la carte Azure Application Insights avec statistiques"""
+        # Variables d'environnement Azure Insights
+        insights_vars = {
+            'AZ_INSTRUMENTATION_KEY': os.getenv('AZ_INSTRUMENTATION_KEY', 'N/A'),
+            'AZ_CONNECTION_STRING': bool(os.getenv('AZ_CONNECTION_STRING')),
+            'AZ_WORKPLACE': os.getenv('AZ_WORKPLACE', 'N/A')
+        }
+        
+        # Récupérer les statistiques depuis l'API
+        try:
+            response = requests.get(f"{self.api_base_url}/admin/azure-insights", timeout=5)
+            if response.status_code == 200:
+                insights_status = response.json()
+            else:
+                insights_status = {'enabled': False, 'error': 'API non disponible'}
+        except Exception as e:
+            insights_status = {'enabled': False, 'error': str(e)}
+        
+        # Statut de la connexion
+        insights_configured = insights_status.get('enabled', False)
+        
+        if insights_configured:
+            status_color = styles['colors']['success']
+            status_icon = "fas fa-check-circle"
+            status_text = "Configuré"
+        else:
+            status_color = styles['colors']['danger']
+            status_icon = "fas fa-times-circle"
+            status_text = "Non configuré"
+        
+        insights_rows = [
+            html.Tr([
+                html.Td([
+                    html.I(className=status_icon, style={'color': status_color, 'marginRight': '0.5rem'}),
+                    html.Strong(f"Statut: {status_text}", style={'color': status_color})
+                ], colSpan=2)
+            ]),
+            html.Tr([
+                html.Td("Instrumentation Key:", style={'fontWeight': '500', 'width': '40%'}),
+                html.Td(
+                    "Configurée" if insights_vars['AZ_INSTRUMENTATION_KEY'] != 'N/A' else "Non configurée",
+                    style={'color': styles['colors']['success'] if insights_vars['AZ_INSTRUMENTATION_KEY'] != 'N/A' else styles['colors']['danger']}
+                )
+            ]),
+            html.Tr([
+                html.Td("Connection String:", style={'fontWeight': '500'}),
+                html.Td(
+                    "Configurée" if insights_vars['AZ_CONNECTION_STRING'] else "Non configurée",
+                    style={'color': styles['colors']['success'] if insights_vars['AZ_CONNECTION_STRING'] else styles['colors']['danger']}
+                )
+            ]),
+            html.Tr([
+                html.Td("Workspace:", style={'fontWeight': '500'}),
+                html.Td(insights_vars['AZ_WORKPLACE'])
+            ])
+        ]
+        
+        # Ajouter les statistiques si le service est activé
+        if insights_configured and 'predictions_count' in insights_status:
+            insights_rows.extend([
+                html.Tr([
+                    html.Td(html.Strong("Statistiques d'utilisation", style={'color': styles['colors']['primary']}), colSpan=2)
+                ]),
+                html.Tr([
+                    html.Td("Prédictions enregistrées:", style={'paddingLeft': '2rem', 'fontWeight': '500'}),
+                    html.Td(str(insights_status.get('predictions_count', 0)))
+                ]),
+                html.Tr([
+                    html.Td("Feedbacks enregistrés:", style={'paddingLeft': '2rem', 'fontWeight': '500'}),
+                    html.Td(str(insights_status.get('feedback_count', 0)))
+                ]),
+                html.Tr([
+                    html.Td("Dernière prédiction:", style={'paddingLeft': '2rem', 'fontWeight': '500'}),
+                    html.Td(
+                        insights_status.get('last_prediction', 'Aucune'),
+                        style={'fontSize': '0.9rem', 'fontFamily': 'monospace'}
+                    )
+                ]),
+                html.Tr([
+                    html.Td("Dernier feedback:", style={'paddingLeft': '2rem', 'fontWeight': '500'}),
+                    html.Td(
+                        insights_status.get('last_feedback', 'Aucun'),
+                        style={'fontSize': '0.9rem', 'fontFamily': 'monospace'}
+                    )
+                ]),
+                html.Tr([
+                    html.Td("Session démarrée:", style={'paddingLeft': '2rem', 'fontWeight': '500'}),
+                    html.Td(
+                        insights_status.get('session_start', 'N/A'),
+                        style={'fontSize': '0.9rem', 'fontFamily': 'monospace'}
+                    )
+                ]),
+                html.Tr([
+                    html.Td("Durée de session:", style={'paddingLeft': '2rem', 'fontWeight': '500'}),
+                    html.Td(
+                        insights_status.get('session_duration', 'N/A'),
+                        style={'fontSize': '0.9rem', 'fontFamily': 'monospace'}
+                    )
+                ])
+            ])
+        elif insights_configured:
+            insights_rows.append(
+                html.Tr([
+                    html.Td("Statistiques:", style={'paddingLeft': '2rem', 'fontWeight': '500'}),
+                    html.Td("En cours de chargement...", style={'fontStyle': 'italic'})
+                ])
+            )
+        
+        return html.Div([
+            html.Table([
+                html.Tbody(insights_rows)
             ], className="table table-sm", style={'marginBottom': '0'})
         ], style={
             'padding': '1.5rem',

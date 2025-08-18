@@ -1,4 +1,4 @@
-# Service DagsHub avec contrôle non-bloquant de la configuration
+# Service DagsHub avec contrôle non-bloquant de la configuration - VERSION RESTAURÉE
 import os
 import logging
 import json
@@ -527,6 +527,7 @@ class DagsHubService:
                 "config_status": self.get_config_status(),
                 "error": str(e)
             }    
+    
     def health_check(self) -> dict:
         """Vérification de santé avec statut de configuration"""
         return {
