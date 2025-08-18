@@ -22,6 +22,9 @@ env:
   AZURE_RESOURCE_GROUP: ${{ secrets.AZ_RESOURCE_GROUP }}
   AZURE_CONTAINER_NAME: ${{ secrets.AZ_CONTAINER }}
   AZURE_LOCATION: ${{ secrets.AZ_REGION }}
+  AZ_INSTRUMENTATION_KEY: ${{ secrets.AZ_INSTRUMENTATION_KEY }}
+  AZ_CONNECTION_STRING: ${{ secrets.AZ_CONNECTION_STRING }}
+  AZ_WORKPLACE: ${{ secrets.AZ_WORKPLACE }}
 
 jobs:
   # Job 1: Build et Push de l'image Docker
