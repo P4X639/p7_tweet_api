@@ -1,4 +1,4 @@
-# Service DagsHub avec contrôle non-bloquant de la configuration - VERSION RESTAURÉE
+# Service DagsHub
 import os
 import logging
 import json

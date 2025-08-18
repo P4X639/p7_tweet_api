@@ -1,4 +1,4 @@
-# Version finale simplifiée de services/azure_insights_service.py
+# Azure Insights
 import os
 import json
 import logging

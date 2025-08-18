@@ -1,4 +1,4 @@
-# Main.py avec Azure Insights fonctionnel - SANS régressions sur les autres services
+# Main.py + Azure Insights
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
