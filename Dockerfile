@@ -34,10 +34,10 @@ COPY assets/ ./assets/
 COPY services/ ./services/
 COPY utils/ ./utils/
 COPY version_info.json .
-COPY start.sh /app/start.sh
-COPY api-restart.sh /app/api-restart.sh
-COPY api-status.sh  /app/api-status.sh
-COPY api-stop.sh /app/api-stop.sh
+#COPY start.sh /app/start.sh
+#COPY api-restart.sh /app/api-restart.sh
+#COPY api-status.sh  /app/api-status.sh
+#COPY api-stop.sh /app/api-stop.sh
 
 RUN chmod +x /app/*.sh
 RUN mkdir -p data models reports log
@@ -46,6 +46,6 @@ RUN mkdir -p data models reports log
 EXPOSE 8000 8050
 
 # Commande par défaut
-# CMD ["python", "main.py"]
-CMD ["/app/start.sh"]
+CMD ["python", "main.py"]
+#CMD ["/app/start.sh"]
 

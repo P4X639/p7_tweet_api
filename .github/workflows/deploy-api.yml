@@ -217,6 +217,17 @@ jobs:
             'DAGSHUB_USERNAME=${{ secrets.DAGSHUB_USERNAME }}' \
             'DAGSHUB_REPO=${{ secrets.DAGSHUB_REPO }}' \
             'MLFLOW_TRACKING_URI=${{ secrets.MLFLOW_TRACKING_URI }}' \
+            'AZ_CLIENT_ID=${{ secrets.AZ_CLIENT_ID }}' \
+            'AZ_CLIENT_SECRET=${{ secrets.AZ_CLIENT_SECRET }}' \
+            'AZ_CONTAINER=${{ secrets.AZ_CONTAINER }}' \
+            'AZ_RESOURCE_GROUP=${{ secrets.AZ_RESOURCE_GROUP }}' \
+            'AZ_REGION=${{ secrets.AZ_REGION }}' \
+            'AZ_SUBSCRIPTION_ID=${{ secrets.AZ_SUBSCRIPTION_ID }}' \
+            'AZ_SUBSCRIPTION_NAME=${{ secrets.AZ_SUBSCRIPTION_NAME }}' \
+            'AZ_TENANT_ID=${{ secrets.AZ_TENANT_ID }}' \
+            'AZ_INSTRUMENTATION_KEY=${{ secrets.AZ_INSTRUMENTATION_KEY }}' \
+            'AZ_CONNECTION_STRING=${{ secrets.AZ_CONNECTION_STRING }}' \
+            'AZ_WORKPLACE=${{ secrets.AZ_WORKPLACE }}' \
           --location ${{ env.AZURE_LOCATION }}
     
     - name: Get deployment info
