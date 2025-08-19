@@ -38,8 +38,8 @@ COPY version_info.json .
 #COPY api-restart.sh /app/api-restart.sh
 #COPY api-status.sh  /app/api-status.sh
 #COPY api-stop.sh /app/api-stop.sh
+#RUN chmod +x /app/*.sh
 
-RUN chmod +x /app/*.sh
 RUN mkdir -p data models reports log
 
 # Exposer le port de l’API
