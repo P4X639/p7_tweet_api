@@ -6,23 +6,33 @@
     },
     "branch": "main"
   },
-  "commit_id": "db8d30e",
-  "commit_date": "2025-08-18 23:14:12",
+  "commit_id": "cfedcee",
+  "commit_date": "2025-08-18 23:19:05",
   "files": [
     {
-      "file": "main.py",
-      "date": "2025-08-18 23:17:57",
+      "file": "Dockerfile",
+      "date": "2025-08-19 09:43:33",
       "status": " M"
     },
     {
-      "file": "services/azure_insights_service.py",
-      "date": "2025-08-18 23:18:18",
-      "status": " M"
+      "file": "api-restart.sh",
+      "date": "2025-08-19 09:28:19",
+      "status": "??"
     },
     {
-      "file": "services/dagshub_service.py",
-      "date": "2025-08-18 23:17:29",
-      "status": " M"
+      "file": "api-status.sh",
+      "date": "2025-08-19 09:28:36",
+      "status": "??"
+    },
+    {
+      "file": "api-stop.sh",
+      "date": "2025-08-19 09:28:53",
+      "status": "??"
+    },
+    {
+      "file": "start.sh",
+      "date": "2025-08-19 09:27:52",
+      "status": "??"
     }
   ]
 }

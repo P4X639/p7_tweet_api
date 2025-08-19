@@ -17,7 +17,7 @@ ENV PYTHONUNBUFFERED=1 \
 # Installation des dépendances système minimales
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential gcc g++ curl git \
-    procps htop net-tools vim nano less lsof tcpdump bash tree ngrep jq\
+    procps htop net-tools vim nano less lsof tcpdump bash tree wget ngrep jq\
  && apt-get clean \
  && rm -rf /var/lib/apt/lists/*
 
@@ -34,13 +34,18 @@ COPY assets/ ./assets/
 COPY services/ ./services/
 COPY utils/ ./utils/
 COPY version_info.json .
-
+COPY start.sh /app/start.sh
+COPY api-restart.sh /app/api-restart.sh
+COPY api-status.sh  /app/api-status.sh
+COPY api-stop.sh /app/api-stop.sh
 
 # Répertoires de travail
-RUN mkdir -p data models reports logs
+RUN mkdir -p data models reports log
 
 # Exposer le port de l’API
 EXPOSE 8000 8050
 
 # Commande par défaut
-CMD ["python", "main.py"]
+# CMD ["python", "main.py"]
+CMD ["/app/start.sh"]
+
