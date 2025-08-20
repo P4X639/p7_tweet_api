@@ -231,6 +231,12 @@ jobs:
       run: |
         echo "API_BASE_URL=http://$STAGING_IP:8000" >> $GITHUB_ENV
         echo "[✓] URL API staging configuree: http://$STAGING_IP:8000"
+        
+        echo "[-] Installation de jq pour l'analyse JSON..."
+        sudo apt-get update -qq
+        sudo apt-get install -y jq
+        
+        echo "[✓] Dependances installees (pytest, requests, jq)"
     
     - name: Run unit tests against staging
       run: |
@@ -238,29 +244,27 @@ jobs:
         python -m pytest tests/test_api.py --json-report --json-report-file=staging_test_results.json -v --tb=short || echo "TEST_FAILED=true" >> $GITHUB_ENV
     
     - name: Analyze test results
-      run: |
-        if [ -f staging_test_results.json ]; then
-          echo "[-] Analyse des resultats de tests..."
-          python3 -c "
-import json
-with open('staging_test_results.json', 'r') as f:
-    data = json.load(f)
-summary = data.get('summary', {})
-passed = summary.get('passed', 0)
-total = summary.get('total', 0)
-failed = summary.get('failed', 0)
-print(f'[!] Tests: {passed}/{total} passes')
-if failed > 0:
-    print(f'[X] {failed} tests echoues')
-    with open('$GITHUB_ENV', 'a') as f:
-        f.write('TEST_FAILED=true\\n')
-else:
-    print('[✓] Tous les tests passes')
-"
-        else
-          echo "[X] Fichier de resultats de tests non trouve"
-          echo "TEST_FAILED=true" >> $GITHUB_ENV
-        fi
+          run: |
+            if [ -f staging_test_results.json ]; then
+              echo "[-] Analyse des resultats de tests..."
+              
+              # Extraire les resultats avec jq
+              PASSED=$(jq -r '.summary.passed // 0' staging_test_results.json)
+              TOTAL=$(jq -r '.summary.total // 0' staging_test_results.json)
+              FAILED=$(jq -r '.summary.failed // 0' staging_test_results.json)
+              
+              echo "[!] Tests: $PASSED/$TOTAL passes"
+              
+              if [ "$FAILED" -gt 0 ]; then
+                echo "[X] $FAILED tests echoues"
+                echo "TEST_FAILED=true" >> $GITHUB_ENV
+              else
+                echo "[✓] Tous les tests passes"
+              fi
+            else
+              echo "[X] Fichier de resultats de tests non trouve"
+              echo "TEST_FAILED=true" >> $GITHUB_ENV
+            fi
     
     - name: Production switch or staging cleanup
       run: |
