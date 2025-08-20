@@ -5,7 +5,6 @@ on:
   push:
     branches: [ main ]
     paths:
-      # Declencher seulement si ces fichiers/dossiers sont modifies
       - 'services/**'
       - 'Dockerfile'
       - 'docker-compose.yml'
@@ -317,7 +316,7 @@ jobs:
         path: staging_test_results.json
         retention-days: 30
 
-  # Job 3: Production deployment (only if staging tests passed)
+  # Job 3: Production deployment (if staging tests ok)
   deploy-to-production:
     name: Deploy to Production
     runs-on: ubuntu-latest
@@ -454,7 +453,6 @@ jobs:
             --name ${{ env.AZURE_CONTAINER_NAME }}
         fi
 
-  # Modifier votre job notify existant
   notify:
     name: Notification
     runs-on: ubuntu-latest
@@ -479,7 +477,7 @@ jobs:
     - name: Send SMS notification
       if: needs.deploy-to-production.result == 'success'
       run: |
-        # Votre script SMS existant avec icônes
+        # script SMS
         cat > send_notification.py << 'EOF'
         import requests
         import sys
@@ -509,7 +507,7 @@ jobs:
         if __name__ == "__main__":
             message = "[✓] P7 Tweet API deployee avec succes sur Azure! Tests CE4 valides. L'application est maintenant en ligne."
             envoyer_sms(message)
-EOF
+        EOF
         
         python send_notification.py
       env:
