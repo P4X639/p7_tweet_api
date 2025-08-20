@@ -135,17 +135,10 @@ jobs:
     - name: Delete existing staging container
       run: |
         echo "[-] Suppression du container staging s'il existe..."
-        if az container show \\
-          --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \\
-          --name ${{ env.AZURE_STAGING_CONTAINER }} \\
-          --output none 2>/dev/null; then
-          
+        if az container show --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --name ${{ env.AZURE_STAGING_CONTAINER }} --output none 2>/dev/null; 
+        then  
           echo "[!] Container staging existant trouve - suppression..."
-          az container delete \\
-            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \\
-            --name ${{ env.AZURE_STAGING_CONTAINER }} \\
-            --yes
-          
+          az container delete --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --name ${{ env.AZURE_STAGING_CONTAINER }} --yes
           echo "[✓] Container staging supprime"
         else
           echo "[-] Aucun container staging existant"
@@ -288,10 +281,7 @@ jobs:
       run: |
         if [ "$TEST_FAILED" = "true" ]; then
           echo "[X] Tests echoues - suppression du staging"
-          az container delete \\
-            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \\
-            --name ${AZURE_STAGING_CONTAINER} \\
-            --yes
+          az container delete --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --name ${AZURE_STAGING_CONTAINER} --yes
           echo "[✓] Container staging supprime"
           echo "DEPLOYMENT_STATUS=failed" >> $GITHUB_ENV
           exit 1
@@ -299,22 +289,13 @@ jobs:
           echo "[✓] Tests reussis - preparation basculement vers production"
           
           # Supprimer le container de production existant
-          if az container show \\
-            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \\
-            --name ${{ env.AZURE_CONTAINER_NAME }} \\
-            --output none 2>/dev/null; then
+          if az container show --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --name ${{ env.AZURE_CONTAINER_NAME }} --output none 2>/dev/null; then
             
             echo "[!] Suppression du container production existant..."
-            az container delete \\
-              --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \\
-              --name ${{ env.AZURE_CONTAINER_NAME }} \\
-              --yes
+            az container delete --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --name ${{ env.AZURE_CONTAINER_NAME }} --yes
               
             # Attendre la suppression complete
-            while az container show \\
-              --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \\
-              --name ${{ env.AZURE_CONTAINER_NAME }} \\
-              --output none 2>/dev/null; do
+            while az container show --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --name ${{ env.AZURE_CONTAINER_NAME }} --output none 2>/dev/null; do
               echo "[-] Attente suppression complete..."
               sleep 10
             done
@@ -407,10 +388,7 @@ jobs:
     - name: Cleanup staging container
       run: |
         echo "[-] Suppression du container staging..."
-        az container delete \\
-          --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \\
-          --name ${{ env.AZURE_CONTAINER_NAME }}-staging \\
-          --yes || echo "[!] Container staging deja supprime"
+        az container delete --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --name ${{ env.AZURE_CONTAINER_NAME }}-staging --yes || echo "[!] Container staging deja supprime"
         echo "[✓] Container staging supprime"
     
     - name: Get production deployment info
@@ -418,11 +396,7 @@ jobs:
         echo "[-] Recuperation des informations de deploiement production..."
         sleep 10
         
-        IP=$(az container show \\
-          --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \\
-          --name ${{ env.AZURE_CONTAINER_NAME }} \\
-          --query ipAddress.ip \\
-          --output tsv)
+        IP=$(az container show --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --name ${{ env.AZURE_CONTAINER_NAME }} --query ipAddress.ip --output tsv)
         
         if [ -n "$IP" ]; then
           echo "[✓] Deploiement production reussi !"
@@ -433,11 +407,7 @@ jobs:
           echo "  - Health check: http://$IP:8000/healthcheck"
           echo ""
           echo "Etat du container:"
-          az container show \\
-            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \\
-            --name ${{ env.AZURE_CONTAINER_NAME }} \\
-            --query "{Name:name,State:containers[0].instanceView.currentState.state,IP:ipAddress.ip}" \\
-            --output table
+          az container show --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --name ${{ env.AZURE_CONTAINER_NAME }}--query "{Name:name,State:containers[0].instanceView.currentState.state,IP:ipAddress.ip}" --output table
         else
           echo "[!] IP publique pas encore assignee"
           echo "Verifiez dans quelques minutes"
@@ -446,11 +416,7 @@ jobs:
     - name: Production health check
       run: |
         echo "[-] Test de sante du deploiement production..."
-        IP=$(az container show \\
-          --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \\
-          --name ${{ env.AZURE_CONTAINER_NAME }} \\
-          --query ipAddress.ip \\
-          --output tsv)
+        IP=$(az container show --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --name ${{ env.AZURE_CONTAINER_NAME }} --query ipAddress.ip --output tsv)
         
         if [ -n "$IP" ]; then
           echo "[-] Attente du demarrage de l'application..."
@@ -466,9 +432,7 @@ jobs:
           
           echo "[!] L'application ne repond pas aux tests de sante"
           echo "Logs du container:"
-          az container logs \\
-            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \\
-            --name ${{ env.AZURE_CONTAINER_NAME }}
+          az container logs --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --name ${{ env.AZURE_CONTAINER_NAME }}
         fi
 
   notify:
