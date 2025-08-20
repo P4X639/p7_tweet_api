@@ -6,28 +6,43 @@
     },
     "branch": "main"
   },
-  "commit_id": "36be1e3",
-  "commit_date": "2025-08-19 12:38:57",
+  "commit_id": "bcf3eae",
+  "commit_date": "2025-08-20 18:46:41",
   "files": [
     {
-      "file": ".github/workflows/deploy-api.yml",
-      "date": "2025-08-19 17:11:44",
-      "status": "M "
+      "file": ".dockerignore",
+      "date": "2025-08-20 19:53:50",
+      "status": " M"
     },
     {
-      "file": "main.py",
-      "date": "2025-08-20 18:04:37",
-      "status": "M "
+      "file": "Dockerfile",
+      "date": "2025-08-20 19:51:21",
+      "status": " M"
     },
     {
-      "file": "services/azure_insights_service.py",
-      "date": "2025-08-20 18:14:32",
-      "status": "M "
+      "file": "requirements.txt",
+      "date": "2025-08-20 19:55:31",
+      "status": " M"
     },
     {
-      "file": "services/dash_ui_service.py",
-      "date": "2025-08-20 18:17:12",
-      "status": "M "
+      "file": "tests/pytest.ini",
+      "date": "2025-08-20 19:45:40",
+      "status": "??"
+    },
+    {
+      "file": "tests/run_tests.py",
+      "date": "2025-08-20 19:48:02",
+      "status": "??"
+    },
+    {
+      "file": "tests/test_api.py",
+      "date": "2025-08-20 19:40:51",
+      "status": "??"
+    },
+    {
+      "file": "tests/version_info.json",
+      "date": "2025-08-20 19:52:11",
+      "status": "??"
     }
   ]
 }

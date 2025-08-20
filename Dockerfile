@@ -33,6 +33,7 @@ COPY main.py .
 COPY assets/ ./assets/
 COPY services/ ./services/
 COPY utils/ ./utils/
+COPY tests/ ./tests/
 COPY version_info.json .
 #COPY start.sh /app/start.sh
 #COPY api-restart.sh /app/api-restart.sh

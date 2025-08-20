@@ -87,8 +87,9 @@ models/checkpoints/
 !models/preprocessing_config.json
 
 # Tests
-tests/
+# tests/
 pytest_cache/
+.pytest_cache/
 .coverage
 htmlcov/
 
