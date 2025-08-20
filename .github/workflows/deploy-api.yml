@@ -244,27 +244,27 @@ jobs:
         python -m pytest tests/test_api.py --json-report --json-report-file=staging_test_results.json -v --tb=short || echo "TEST_FAILED=true" >> $GITHUB_ENV
     
     - name: Analyze test results
-          run: |
-            if [ -f staging_test_results.json ]; then
-              echo "[-] Analyse des resultats de tests..."
-              
-              # Extraire les resultats avec jq
-              PASSED=$(jq -r '.summary.passed // 0' staging_test_results.json)
-              TOTAL=$(jq -r '.summary.total // 0' staging_test_results.json)
-              FAILED=$(jq -r '.summary.failed // 0' staging_test_results.json)
-              
-              echo "[!] Tests: $PASSED/$TOTAL passes"
-              
-              if [ "$FAILED" -gt 0 ]; then
-                echo "[X] $FAILED tests echoues"
-                echo "TEST_FAILED=true" >> $GITHUB_ENV
-              else
-                echo "[✓] Tous les tests passes"
-              fi
-            else
-              echo "[X] Fichier de resultats de tests non trouve"
-              echo "TEST_FAILED=true" >> $GITHUB_ENV
-            fi
+      run: |
+        if [ -f staging_test_results.json ]; then
+          echo "[-] Analyse des resultats de tests..."
+          
+          # Extraire les resultats avec jq
+          PASSED=$(jq -r '.summary.passed // 0' staging_test_results.json)
+          TOTAL=$(jq -r '.summary.total // 0' staging_test_results.json)
+          FAILED=$(jq -r '.summary.failed // 0' staging_test_results.json)
+          
+          echo "[!] Tests: $PASSED/$TOTAL passes"
+          
+          if [ "$FAILED" -gt 0 ]; then
+            echo "[X] $FAILED tests echoues"
+            echo "TEST_FAILED=true" >> $GITHUB_ENV
+          else
+            echo "[✓] Tous les tests passes"
+          fi
+        else
+          echo "[X] Fichier de resultats de tests non trouve"
+          echo "TEST_FAILED=true" >> $GITHUB_ENV
+        fi
     
     - name: Production switch or staging cleanup
       run: |
