@@ -25,6 +25,7 @@ env:
   AZ_INSTRUMENTATION_KEY: ${{ secrets.AZ_INSTRUMENTATION_KEY }}
   AZ_CONNECTION_STRING: ${{ secrets.AZ_CONNECTION_STRING }}
   AZ_WORKPLACE: ${{ secrets.AZ_WORKPLACE }}
+
 jobs:
   # Job 1: Build et Push de l'image Docker
   build-and-push:
@@ -76,17 +77,17 @@ jobs:
     - name: Test image locally
       run: |
         # Test que l'image se lance correctement
-        docker run --rm -d \
-          --name test-container \
-          -p 8000:8000 \
-          -e ENVIRONMENT=test \
-          -e TF_ENABLE_ONEDNN_OPTS=0 \
-          -e PYTHONUNBUFFERED=1 \
-          -e MODEL_RUN_ID=test-mode \
-          -e DAGSHUB_TOKEN=test-token \
-          -e DAGSHUB_USERNAME=test \
-          -e DAGSHUB_REPO=test \
-          -e MLFLOW_TRACKING_URI=test \
+        docker run --rm -d \\
+          --name test-container \\
+          -p 8000:8000 \\
+          -e ENVIRONMENT=test \\
+          -e TF_ENABLE_ONEDNN_OPTS=0 \\
+          -e PYTHONUNBUFFERED=1 \\
+          -e MODEL_RUN_ID=test-mode \\
+          -e DAGSHUB_TOKEN=test-token \\
+          -e DAGSHUB_USERNAME=test \\
+          -e DAGSHUB_REPO=test \\
+          -e MLFLOW_TRACKING_URI=test \\
           ${{ env.DOCKER_IMAGE }}:${{ env.DOCKER_TAG }}
         
         # Attendre le demarrage plus longtemps
@@ -106,7 +107,7 @@ jobs:
         # Nettoyage
         docker stop test-container
 
-  # Job 2.5: Staging deployment + tests before production
+  # Job 2: Staging deployment + tests before production
   staging-tests:
     name: Staging Tests & Production Switch
     runs-on: ubuntu-latest
@@ -135,10 +136,9 @@ jobs:
     - name: Delete existing staging container
       run: |
         echo "[-] Suppression du container staging s'il existe..."
-        if az container show --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --name ${{ env.AZURE_STAGING_CONTAINER }} --output none 2>/dev/null; 
-        then  
+        if az container show --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" --name "${{ env.AZURE_STAGING_CONTAINER }}" --output none 2>/dev/null; then  
           echo "[!] Container staging existant trouve - suppression..."
-          az container delete --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --name ${{ env.AZURE_STAGING_CONTAINER }} --yes
+          az container delete --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" --name "${{ env.AZURE_STAGING_CONTAINER }}" --yes
           echo "[✓] Container staging supprime"
         else
           echo "[-] Aucun container staging existant"
@@ -149,57 +149,41 @@ jobs:
         DEPLOYMENT_IMAGE: docker.io/p4x639/p7-tweet-api:latest
       run: |
         echo "[-] Creation du container staging pour tests..."
-        az container create \
-          --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-          --name ${AZURE_STAGING_CONTAINER} \
-          --image ${DEPLOYMENT_IMAGE} \
-          --cpu 1 \
-          --memory 1 \
-          --os-type Linux \
-          --restart-policy Always \
-          --ip-address Public \
-          --ports 8000 8050 \
-          --environment-variables \
-            'PYTHONUNBUFFERED=1' \
-            'TF_ENABLE_ONEDNN_OPTS=0' \
-            'ENVIRONMENT=staging' \
-            'API_HOST=0.0.0.0' \
-            'API_PORT=8000' \
-            'DASH_PORT=8050' \
-            'MODEL_RUN_ID=${{ secrets.MODEL_RUN_ID }}' \
-            'DAGSHUB_TOKEN=${{ secrets.DAGSHUB_TOKEN }}' \
-            'DAGSHUB_USERNAME=${{ secrets.DAGSHUB_USERNAME }}' \
-            'DAGSHUB_REPO=${{ secrets.DAGSHUB_REPO }}' \
-            'MLFLOW_TRACKING_URI=${{ secrets.MLFLOW_TRACKING_URI }}' \
-            'AZ_CLIENT_ID=${{ secrets.AZ_CLIENT_ID }}' \
-            'AZ_CLIENT_SECRET=${{ secrets.AZ_CLIENT_SECRET }}' \
-            'AZ_CONTAINER=${{ secrets.AZ_CONTAINER }}' \
-            'AZ_RESOURCE_GROUP=${{ secrets.AZ_RESOURCE_GROUP }}' \
-            'AZ_REGION=${{ secrets.AZ_REGION }}' \
-            'AZ_SUBSCRIPTION_ID=${{ secrets.AZ_SUBSCRIPTION_ID }}' \
-            'AZ_SUBSCRIPTION_NAME=${{ secrets.AZ_SUBSCRIPTION_NAME }}' \
-            'AZ_TENANT_ID=${{ secrets.AZ_TENANT_ID }}' \
-            'AZ_INSTRUMENTATION_KEY=${{ secrets.AZ_INSTRUMENTATION_KEY }}' \
-            'AZ_CONNECTION_STRING=${{ secrets.AZ_CONNECTION_STRING }}' \
-            'AZ_WORKPLACE=${{ secrets.AZ_WORKPLACE }}' \
-            'SMS_URL=${{ secrets.SMS_URL }}' \
-            'SMS_USER=${{ secrets.SMS_USER }}' \
-            'SMS_PWD=${{ secrets.SMS_PWD }}' \
-          --location ${{ env.AZURE_LOCATION }}
+        az container create \\
+          --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \\
+          --name "${{ env.AZURE_STAGING_CONTAINER }}" \\
+          --image "${DEPLOYMENT_IMAGE}" \\
+          --cpu 1 \\
+          --memory 1 \\
+          --os-type Linux \\
+          --restart-policy Always \\
+          --ip-address Public \\
+          --ports 8000 8050 \\
+          --environment-variables \\
+            'PYTHONUNBUFFERED=1' \\
+            'TF_ENABLE_ONEDNN_OPTS=0' \\
+            'ENVIRONMENT=staging' \\
+            'API_HOST=0.0.0.0' \\
+            'API_PORT=8000' \\
+            'DASH_PORT=8050' \\
+            'MODEL_RUN_ID=${{ secrets.MODEL_RUN_ID }}' \\
+            'DAGSHUB_TOKEN=${{ secrets.DAGSHUB_TOKEN }}' \\
+            'DAGSHUB_USERNAME=${{ secrets.DAGSHUB_USERNAME }}' \\
+            'DAGSHUB_REPO=${{ secrets.DAGSHUB_REPO }}' \\
+            'MLFLOW_TRACKING_URI=${{ secrets.MLFLOW_TRACKING_URI }}' \\
+            'AZ_INSTRUMENTATION_KEY=${{ secrets.AZ_INSTRUMENTATION_KEY }}' \\
+            'AZ_CONNECTION_STRING=${{ secrets.AZ_CONNECTION_STRING }}' \\
+            'AZ_WORKPLACE=${{ secrets.AZ_WORKPLACE }}' \\
+          --location "${{ env.AZURE_LOCATION }}"
         
         echo "[✓] Container staging cree avec succes"
     
     - name: Wait for staging container startup
       run: |
         echo "[-] Attente du demarrage du container staging..."
-        # Utiliser les variables definies dans les steps precedents
-        RESOURCE_GROUP="${{ env.AZURE_RESOURCE_GROUP }}"
-        CONTAINER_NAME="${{ env.AZURE_CONTAINER_NAME }}"
-        STAGING_NAME="${CONTAINER_NAME}-staging"
+        echo "[!] Recherche IP du container: ${{ env.AZURE_STAGING_CONTAINER }}"
         
-        echo "[!] Recherche IP du container: $STAGING_NAME"
-        
-        STAGING_IP=$(az container show --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --name ${AZURE_STAGING_CONTAINER} --query ipAddress.ip --output tsv)
+        STAGING_IP=$(az container show --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" --name "${{ env.AZURE_STAGING_CONTAINER }}" --query ipAddress.ip --output tsv)
          
         if [ -z "$STAGING_IP" ] || [ "$STAGING_IP" = "null" ]; then
           echo "[X] Impossible de recuperer l'IP du container staging"
@@ -222,7 +206,7 @@ jobs:
           if [ $i -eq 20 ]; then
             echo "[X] Container staging ne repond pas apres 5 minutes"
             echo "[!] Logs du container pour debug:"
-            az container logs --resource-group "$RESOURCE_GROUP" --name "$AZURE_STAGING_CONTAINER" || echo "Impossible de recuperer les logs"
+            az container logs --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" --name "${{ env.AZURE_STAGING_CONTAINER }}" || echo "Impossible de recuperer les logs"
             exit 1
           fi
         done
@@ -236,12 +220,6 @@ jobs:
       run: |
         echo "[-] Installation des dependances de test..."
         pip install pytest pytest-json-report requests
-        echo "[✓] Dependances installees"
-    
-    - name: Export staging API URL
-      run: |
-        echo "API_BASE_URL=http://$STAGING_IP:8000" >> $GITHUB_ENV
-        echo "[✓] URL API staging configuree: http://$STAGING_IP:8000"
         
         echo "[-] Installation de jq pour l'analyse JSON..."
         sudo apt-get update -qq
@@ -249,9 +227,25 @@ jobs:
         
         echo "[✓] Dependances installees (pytest, requests, jq)"
     
+    - name: Export staging API URL
+      run: |
+        echo "API_BASE_URL=http://${{ env.STAGING_IP }}:8000" >> $GITHUB_ENV
+        echo "[✓] URL API staging configuree: http://${{ env.STAGING_IP }}:8000"
+    
     - name: Run unit tests against staging
       run: |
         echo "[-] Execution des tests unitaires sur staging..."
+        echo "[!] URL de test: ${{ env.API_BASE_URL }}"
+        
+        # Test de connectivite avant les tests
+        if curl -f "${{ env.API_BASE_URL }}/healthcheck" --max-time 10; then
+          echo "[✓] API staging accessible"
+        else
+          echo "[X] API staging non accessible - tests annules"
+          echo "TEST_FAILED=true" >> $GITHUB_ENV
+          exit 1
+        fi
+        
         python -m pytest tests/test_api.py --json-report --json-report-file=staging_test_results.json -v --tb=short || echo "TEST_FAILED=true" >> $GITHUB_ENV
     
     - name: Analyze test results
@@ -281,7 +275,7 @@ jobs:
       run: |
         if [ "$TEST_FAILED" = "true" ]; then
           echo "[X] Tests echoues - suppression du staging"
-          az container delete --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --name ${AZURE_STAGING_CONTAINER} --yes
+          az container delete --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" --name "${{ env.AZURE_STAGING_CONTAINER }}" --yes
           echo "[✓] Container staging supprime"
           echo "DEPLOYMENT_STATUS=failed" >> $GITHUB_ENV
           exit 1
@@ -289,13 +283,13 @@ jobs:
           echo "[✓] Tests reussis - preparation basculement vers production"
           
           # Supprimer le container de production existant
-          if az container show --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --name ${{ env.AZURE_CONTAINER_NAME }} --output none 2>/dev/null; then
+          if az container show --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" --name "${{ env.AZURE_CONTAINER_NAME }}" --output none 2>/dev/null; then
             
             echo "[!] Suppression du container production existant..."
-            az container delete --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --name ${{ env.AZURE_CONTAINER_NAME }} --yes
+            az container delete --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" --name "${{ env.AZURE_CONTAINER_NAME }}" --yes
               
             # Attendre la suppression complete
-            while az container show --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --name ${{ env.AZURE_CONTAINER_NAME }} --output none 2>/dev/null; do
+            while az container show --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" --name "${{ env.AZURE_CONTAINER_NAME }}" --output none 2>/dev/null; do
               echo "[-] Attente suppression complete..."
               sleep 10
             done
@@ -346,9 +340,9 @@ jobs:
       run: |
         echo "[-] Creation du nouveau container production..."
         az container create \\
-          --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \\
-          --name ${{ env.AZURE_CONTAINER_NAME }} \\
-          --image ${DEPLOYMENT_IMAGE} \\
+          --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \\
+          --name "${{ env.AZURE_CONTAINER_NAME }}" \\
+          --image "${DEPLOYMENT_IMAGE}" \\
           --cpu 1 \\
           --memory 1 \\
           --os-type Linux \\
@@ -381,14 +375,14 @@ jobs:
             'SMS_URL=${{ secrets.SMS_URL }}' \\
             'SMS_USER=${{ secrets.SMS_USER }}' \\
             'SMS_PWD=${{ secrets.SMS_PWD }}' \\
-          --location ${{ env.AZURE_LOCATION }}
+          --location "${{ env.AZURE_LOCATION }}"
         
         echo "[✓] Container production cree avec succes"
     
     - name: Cleanup staging container
       run: |
         echo "[-] Suppression du container staging..."
-        az container delete --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --name ${{ env.AZURE_CONTAINER_NAME }}-staging --yes || echo "[!] Container staging deja supprime"
+        az container delete --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" --name "${{ env.AZURE_STAGING_CONTAINER }}" --yes || echo "[!] Container staging deja supprime"
         echo "[✓] Container staging supprime"
     
     - name: Get production deployment info
@@ -396,7 +390,7 @@ jobs:
         echo "[-] Recuperation des informations de deploiement production..."
         sleep 10
         
-        IP=$(az container show --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --name ${{ env.AZURE_CONTAINER_NAME }} --query ipAddress.ip --output tsv)
+        IP=$(az container show --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" --name "${{ env.AZURE_CONTAINER_NAME }}" --query ipAddress.ip --output tsv)
         
         if [ -n "$IP" ]; then
           echo "[✓] Deploiement production reussi !"
@@ -407,7 +401,11 @@ jobs:
           echo "  - Health check: http://$IP:8000/healthcheck"
           echo ""
           echo "Etat du container:"
-          az container show --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --name ${{ env.AZURE_CONTAINER_NAME }}--query "{Name:name,State:containers[0].instanceView.currentState.state,IP:ipAddress.ip}" --output table
+          az container show \\
+            --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \\
+            --name "${{ env.AZURE_CONTAINER_NAME }}" \\
+            --query "{Name:name,State:containers[0].instanceView.currentState.state,IP:ipAddress.ip}" \\
+            --output table
         else
           echo "[!] IP publique pas encore assignee"
           echo "Verifiez dans quelques minutes"
@@ -416,7 +414,7 @@ jobs:
     - name: Production health check
       run: |
         echo "[-] Test de sante du deploiement production..."
-        IP=$(az container show --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --name ${{ env.AZURE_CONTAINER_NAME }} --query ipAddress.ip --output tsv)
+        IP=$(az container show --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" --name "${{ env.AZURE_CONTAINER_NAME }}" --query ipAddress.ip --output tsv)
         
         if [ -n "$IP" ]; then
           echo "[-] Attente du demarrage de l'application..."
@@ -432,9 +430,10 @@ jobs:
           
           echo "[!] L'application ne repond pas aux tests de sante"
           echo "Logs du container:"
-          az container logs --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --name ${{ env.AZURE_CONTAINER_NAME }}
+          az container logs --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" --name "${{ env.AZURE_CONTAINER_NAME }}"
         fi
 
+  # Job 4: Notification
   notify:
     name: Notification
     runs-on: ubuntu-latest
@@ -459,7 +458,7 @@ jobs:
     - name: Send SMS notification
       if: needs.deploy-to-production.result == 'success'
       run: |
-        # script SMS
+        # Script SMS
         cat > send_notification.py << 'EOF'
         import requests
         import sys

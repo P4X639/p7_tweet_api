@@ -5,7 +5,7 @@ import pytest
 from datetime import datetime
 
 # Configuration de base pour les tests
-API_BASE_URL = "http://localhost:8000"
+API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
 
 class TestAPIBasic:
     """Tests unitaires minimaux pour l'API de sentiment"""
@@ -72,4 +72,5 @@ class TestAPIBasic:
 
 if __name__ == "__main__":
     # Exécution des tests
+    print(f"[!] Tests executés sur: {API_BASE_URL}")
     pytest.main([__file__, "-v"])
