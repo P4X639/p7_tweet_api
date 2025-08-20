@@ -199,15 +199,28 @@ jobs:
     - name: Wait for staging container startup
       run: |
         echo "[-] Attente du demarrage du container staging..."
+        # Utiliser les variables definies dans les steps precedents
+        RESOURCE_GROUP="${{ env.AZURE_RESOURCE_GROUP }}"
+        CONTAINER_NAME="${{ env.AZURE_CONTAINER_NAME }}"
+        STAGING_NAME="${CONTAINER_NAME}-staging"
+        
+        echo "[!] Recherche IP du container: $STAGING_NAME"
+        
         STAGING_IP=$(az container show \\
           --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \\
           --name ${AZURE_STAGING_CONTAINER} \\
           --query ipAddress.ip \\
           --output tsv)
+         
+        if [ -z "$STAGING_IP" ] || [ "$STAGING_IP" = "null" ]; then
+          echo "[X] Impossible de recuperer l'IP du container staging"
+          exit 1
+        fi
         
         echo "STAGING_IP=$STAGING_IP" >> $GITHUB_ENV
         echo "[!] IP staging: $STAGING_IP"
         
+        echo "[-] Test de connectivite du container staging..."
         for i in {1..20}; do
           if curl -f "http://$STAGING_IP:8000/healthcheck" --max-time 10 >/dev/null 2>&1; then
             echo "[✓] Container staging pret"
@@ -219,6 +232,8 @@ jobs:
           
           if [ $i -eq 20 ]; then
             echo "[X] Container staging ne repond pas apres 5 minutes"
+            echo "[!] Logs du container pour debug:"
+            az container logs --resource-group "$RESOURCE_GROUP" --name "$STAGING_NAME" || echo "Impossible de recuperer les logs"
             exit 1
           fi
         done
