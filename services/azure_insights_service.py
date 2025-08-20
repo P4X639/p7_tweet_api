@@ -193,57 +193,22 @@ class AzureInsightsService:
             self.usage_stats['last_error'] = f"Log prediction failed: {str(e)}"
             return False
     
-    def log_feedback_prev(self, feedback_data: Dict[str, Any]):
-        """Log de feedback avec debug complet"""
-        print(f"[DEBUG] log_feedback appelé - enabled: {self.enabled}")
-        print(f"[DEBUG] Données feedback: {json.dumps(feedback_data, indent=2, default=str)}")
-        
-        if not self.enabled or not self.azure_logger:
-            print("[ERROR] Service non activé pour feedback")
-            return False
-        
-        try:
-            # Mettre à jour les statistiques
-            self.usage_stats['feedback_count'] += 1
-            self.usage_stats['last_feedback'] = datetime.utcnow()
-            
-            log_data = {
-                'event_type': 'user_feedback_debug',
-                'feedback_type': feedback_data.get('feedback_type'),
-                'prediction_id': feedback_data.get('prediction_id'),
-                'original_sentiment': feedback_data.get('original_sentiment'),
-                'original_confidence': float(feedback_data.get('original_confidence', 0)) if feedback_data.get('original_confidence') else None,
-                'timestamp': datetime.utcnow().isoformat(),
-                'user_id': feedback_data.get('user_id', 'anonymous'),
-                'session_id': id(self),
-                'debug_info': {
-                    'feedback_count': self.usage_stats['feedback_count'],
-                    'service_enabled': self.enabled
-                }
-            }
-            
-            print(f"[DEBUG] Données feedback à envoyer: {json.dumps(log_data, indent=2, default=str)}")
-            
-            self.azure_logger.info(
-                'Debug User Feedback Received',
-                extra={'custom_dimensions': log_data}
-            )
-            
-            # Force flush
-            for handler in self.azure_logger.handlers:
-                if hasattr(handler, 'flush'):
-                    handler.flush()
-            
-            self.usage_stats['logs_sent'] += 1
-            print(f"[DEBUG] Feedback envoyé - Total: {self.usage_stats['logs_sent']}")
-            return True
-            
-        except Exception as e:
-            print(f"[ERROR] Erreur log feedback: {e}")
-            self.usage_stats['logs_failed'] += 1
-            self.usage_stats['last_error'] = f"Log feedback failed: {str(e)}"
-            return False
 
+    def _get_version_string(self):
+        """Récupère la version au format Branch-CommitID depuis version_info.json"""
+        try:
+            with open('/app/version_info.json', 'r', encoding='utf-8') as f:
+                version_info = json.load(f)
+            
+            branch = version_info.get('fetch_info', {}).get('branch', 'unknown')
+            commit_id = version_info.get('commit_id', 'unknown')
+            
+            # Tronquer le commit_id aux 7 premiers caractères
+            short_commit = commit_id[:7] if commit_id != 'unknown' else 'unknown'
+            
+            return f"{branch}-{short_commit}"
+        except Exception:
+            return "unknown-unknown"
 
     def log_feedback(self, feedback_data: Dict[str, Any]):
         """
@@ -251,49 +216,46 @@ class AzureInsightsService:
         avec une structure de données optimisée pour la production et les requêtes.
         """
         if not self.enabled or not self.azure_logger:
-            # Utiliser le logger standard pour tracer cette erreur interne
             logger.warning("Service Azure non activé ou logger non disponible pour le feedback.")
             return False
-        
+
         try:
-            # Mettre à jour les statistiques internes
             self.usage_stats['feedback_count'] += 1
             self.usage_stats['last_feedback'] = datetime.utcnow()
-            
-            # 1. Structure de données aplatie et enrichie pour les requêtes KQL
+
             log_data = {
-                'event_type': 'user_feedback',  # Nom propre, sans "debug"
-                'feedback_type': feedback_data.get('feedback_type'),  # 'correct' ou 'incorrect'
+                'event_type': 'user_feedback',
+                'feedback_type': feedback_data.get('feedback_type'),
                 'user_id': feedback_data.get('user_id', 'anonymous'),
                 'prediction_id': feedback_data.get('prediction_id'),
                 'original_sentiment': feedback_data.get('original_sentiment'),
-                'original_confidence': float(feedback_data['original_confidence']) if feedback_data.get('original_confidence') is not None else None,
-                
-                # 2. Ajout crucial du texte du tweet
+                'original_confidence': float(feedback_data['original_confidence']) 
+                                        if feedback_data.get('original_confidence') is not None else None,
                 'tweet_text': feedback_data.get('original_text', ''),
 
+                # ↓↓↓ AJOUTS CLÉS ↓↓↓
+                'model_run_id': feedback_data.get('model_run_id', 'unknown'),  # <- ici le run_id
+                'version': self._get_version_string(),                          # Branch-Commit court
+                # ↑↑↑ AJOUTS CLÉS ↑↑↑
+
                 'session_id': id(self),
-                'feedback_count_session': self.usage_stats['feedback_count'], # Compteur de la session actuelle
+                'feedback_count_session': self.usage_stats['feedback_count'],
                 'timestamp': datetime.utcnow().isoformat()
             }
-            
-            # 3. Message de log plus sémantique
-            log_message = f"Feedback Received: {log_data['feedback_type']}"
-            
-            self.azure_logger.info(
-                log_message,
-                extra={'custom_dimensions': log_data}
-            )
-            
-            # Forcer l'envoi immédiat des logs
+
+            self.azure_logger.info("Feedback Received", extra={'custom_dimensions': log_data})
+
             for handler in self.azure_logger.handlers:
                 if hasattr(handler, 'flush'):
                     handler.flush()
-            
+
             self.usage_stats['logs_sent'] += 1
-            logger.info(f"Feedback '{log_data['feedback_type']}' pour la prédiction {log_data['prediction_id']} envoyé à Azure.")
+            logger.info(
+                "Feedback '%s' (prediction_id=%s, model_run_id=%s) envoyé à Azure.",
+                log_data['feedback_type'], log_data['prediction_id'], log_data['model_run_id']
+            )
             return True
-            
+
         except Exception as e:
             logger.error(f"Erreur lors de l'envoi du feedback à Azure: {e}", exc_info=True)
             self.usage_stats['logs_failed'] += 1

@@ -228,6 +228,9 @@ jobs:
             'AZ_INSTRUMENTATION_KEY=${{ secrets.AZ_INSTRUMENTATION_KEY }}' \
             'AZ_CONNECTION_STRING=${{ secrets.AZ_CONNECTION_STRING }}' \
             'AZ_WORKPLACE=${{ secrets.AZ_WORKPLACE }}' \
+            'SMS_URL=${{ secrets.SMS_URL }}' \
+            'SMS_USER=${{ secrets.SMS_USER }}' \
+            'SMS_PWD=${{ secrets.SMS_PWD }}' \
           --location ${{ env.AZURE_LOCATION }}
     
     - name: Get deployment info
@@ -307,3 +310,45 @@ jobs:
           echo "[X] Deploiement echoue"
           echo "[-] Verifiez les logs des jobs precedents (v24)"
         fi
+
+    - name: Send SMS notification
+      if: needs.deploy-to-azure.result == 'success'
+      run: |
+        # Script d'envoi SMS intégré
+        cat > send_notification.py << 'EOF'
+        import requests
+        import sys
+        import os
+        
+        def envoyer_sms(message):
+            url = os.getenv('SMS_URL', 'https://smsapi.free-mobile.fr/sendmsg')
+            params = {
+                'user': os.getenv('SMS_USER'),
+                'pass': os.getenv('SMS_PWD'),
+                'msg': message
+            }
+            
+            if not params['user'] or not params['pass']:
+                print("Variables SMS non configurées")
+                return False
+                
+            response = requests.get(url, params=params)
+            
+            if response.status_code == 200:
+                print("SMS envoyé avec succès!")
+                return True
+            else:
+                print(f"Erreur lors de l'envoi du SMS: {response.status_code}")
+                return False
+        
+        if __name__ == "__main__":
+            message = "🚀 P7 Tweet API déployée avec succès sur Azure! L'application est maintenant en ligne."
+            envoyer_sms(message)
+        EOF
+        
+        # Exécution du script avec les variables d'environnement
+        python send_notification.py
+      env:
+        SMS_URL: ${{ secrets.SMS_URL }}
+        SMS_USER: ${{ secrets.SMS_USER }}
+        SMS_PWD: ${{ secrets.SMS_PWD }}

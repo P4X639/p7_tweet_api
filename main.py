@@ -246,6 +246,29 @@ class RootResponse(BaseModel):
     config_status: Dict[str, Any]
     azure_insights: str
 
+class FeedbackRequest(BaseModel):
+    feedback_type: str  # "correct" ou "incorrect"
+    prediction_id: str
+    user_id: str = "anonymous"
+    original_sentiment: str
+    original_confidence: float
+    original_text: str
+    timestamp: str = None
+    comment: str = ""
+
+    class Config:
+        schema_extra = {
+            "example": {
+                "feedback_type": "correct",
+                "prediction_id": "12345-abcd-6789",
+                "user_id": "dash_user", 
+                "original_sentiment": "positive",
+                "original_confidence": 0.85,
+                "original_text": "Amazing crew! They were so helpful and friendly.",
+                "timestamp": "2025-08-19T10:30:00Z"
+            }
+        }
+        
 # Endpoints principaux
 @app.get("/", response_model=RootResponse)
 async def root():
@@ -393,45 +416,62 @@ async def predict_sentiment(request: PredictRequest):
         logger.error(f"Erreur prédiction: {e}")
         raise HTTPException(status_code=500, detail=f"Erreur: {str(e)}")
 
+
 @app.post("/feedback", include_in_schema=True)
-async def log_feedback(feedback_data: dict):
-    """Enregistrer un feedback utilisateur avec logging Azure GARANTI"""
+async def log_feedback(feedback_data: FeedbackRequest):
+    """
+    Enregistrer un feedback utilisateur avec logging Azure
+    """
     try:
-        logger.info(f"Réception feedback: {feedback_data.get('feedback_type')} pour prédiction {feedback_data.get('prediction_id')}")
-        
+        from datetime import datetime
+        global dagshub_service  # accès au run_id du modèle
+
+        # Convertir le modèle Pydantic en dict
+        feedback_dict = feedback_data.dict()
+
+        # Ajouter timestamp si manquant
+        if not feedback_dict.get('timestamp'):
+            feedback_dict['timestamp'] = datetime.utcnow().isoformat()
+
+        # Ajouter le model_run_id si disponible
+        if dagshub_service and hasattr(dagshub_service, "model_run_id"):
+            feedback_dict['model_run_id'] = dagshub_service.model_run_id
+        else:
+            feedback_dict['model_run_id'] = "unknown"
+
+        logger.info(
+            f"Réception feedback: {feedback_dict.get('feedback_type')} "
+            f"pour prédiction {feedback_dict.get('prediction_id')} "
+            f"(run_id={feedback_dict['model_run_id']})"
+        )
+
         azure_logged = False
-        
-        # CRITIQUE : Log dans Azure Insights - TOUJOURS essayer
         if azure_insights_service:
             try:
-                # Enrichir les données de feedback
-                feedback_dict = feedback_data.copy()
-                feedback_dict['feedback_timestamp'] = __import__('datetime').datetime.utcnow().isoformat()
-                
-                # Appel explicite de log_feedback
                 azure_logged = azure_insights_service.log_feedback(feedback_dict)
-                
                 if azure_logged:
-                    logger.info(f"[AZURE] Feedback loggé: {feedback_data.get('feedback_type')} pour {feedback_data.get('prediction_id')}")
+                    logger.info(f"[AZURE] Feedback loggé avec run_id={feedback_dict['model_run_id']}")
                 else:
-                    logger.warning(f"[AZURE] Échec du logging feedback: {feedback_data.get('prediction_id')}")
-                    
+                    logger.warning(f"[AZURE] Échec du logging feedback run_id={feedback_dict['model_run_id']}")
             except Exception as azure_error:
                 logger.error(f"[AZURE] Erreur logging feedback: {azure_error}")
         else:
             logger.warning("[AZURE] Service Azure non disponible pour feedback")
-        
+
         return {
             "success": True,
             "message": "Feedback enregistré",
             "azure_logged": azure_logged,
-            "feedback_type": feedback_data.get('feedback_type'),
-            "prediction_id": feedback_data.get('prediction_id')
+            "feedback_type": feedback_dict.get('feedback_type'),
+            "prediction_id": feedback_dict.get('prediction_id'),
+            "user_id": feedback_dict.get('user_id'),
+            "model_run_id": feedback_dict.get('model_run_id')  # renvoyé aussi dans la réponse
         }
-        
+
     except Exception as e:
         logger.error(f"Erreur enregistrement feedback: {e}")
         raise HTTPException(status_code=500, detail=f"Erreur: {str(e)}")
+
 
 @app.get("/model/info")
 async def get_model_info():

@@ -144,7 +144,7 @@ class DashUIService:
             dbc.Container([
                 dbc.NavbarBrand([
                     html.I(className="fas fa-chart-line me-3"),
-                    "P7 Tweet Sentiment Analysis"
+                    "P7 Tweet API - Analyse de sentiment"
                 ], style={'fontSize': '1.5rem', 'fontWeight': '600'}),
                 
                 dbc.Nav([
@@ -1370,20 +1370,6 @@ class DashUIService:
                     html.Td("Dernier feedback:", style={'paddingLeft': '2rem', 'fontWeight': '500'}),
                     html.Td(
                         insights_status.get('last_feedback', 'Aucun'),
-                        style={'fontSize': '0.9rem', 'fontFamily': 'monospace'}
-                    )
-                ]),
-                html.Tr([
-                    html.Td("Session démarrée:", style={'paddingLeft': '2rem', 'fontWeight': '500'}),
-                    html.Td(
-                        insights_status.get('session_start', 'N/A'),
-                        style={'fontSize': '0.9rem', 'fontFamily': 'monospace'}
-                    )
-                ]),
-                html.Tr([
-                    html.Td("Durée de session:", style={'paddingLeft': '2rem', 'fontWeight': '500'}),
-                    html.Td(
-                        insights_status.get('session_duration', 'N/A'),
                         style={'fontSize': '0.9rem', 'fontFamily': 'monospace'}
                     )
                 ])
