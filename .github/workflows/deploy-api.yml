@@ -77,17 +77,17 @@ jobs:
     - name: Test image locally
       run: |
         # Test que l'image se lance correctement
-        docker run --rm -d \\
-          --name test-container \\
-          -p 8000:8000 \\
-          -e ENVIRONMENT=test \\
-          -e TF_ENABLE_ONEDNN_OPTS=0 \\
-          -e PYTHONUNBUFFERED=1 \\
-          -e MODEL_RUN_ID=test-mode \\
-          -e DAGSHUB_TOKEN=test-token \\
-          -e DAGSHUB_USERNAME=test \\
-          -e DAGSHUB_REPO=test \\
-          -e MLFLOW_TRACKING_URI=test \\
+        docker run --rm -d \
+          --name test-container \
+          -p 8000:8000 \
+          -e ENVIRONMENT=test \
+          -e TF_ENABLE_ONEDNN_OPTS=0 \
+          -e PYTHONUNBUFFERED=1 \
+          -e MODEL_RUN_ID=test-mode \
+          -e DAGSHUB_TOKEN=test-token \
+          -e DAGSHUB_USERNAME=test \
+          -e DAGSHUB_REPO=test \
+          -e MLFLOW_TRACKING_URI=test \
           ${{ env.DOCKER_IMAGE }}:${{ env.DOCKER_TAG }}
         
         # Attendre le demarrage plus longtemps
@@ -372,7 +372,7 @@ jobs:
             'DAGSHUB_USERNAME=${{ secrets.DAGSHUB_USERNAME }}' \
             'DAGSHUB_REPO=${{ secrets.DAGSHUB_REPO }}' \
             'MLFLOW_TRACKING_URI=${{ secrets.MLFLOW_TRACKING_URI }}' \
-            'AZ_CLIENT_ID=${{ secrets.AZ_CLIENT_ID }}' \\
+            'AZ_CLIENT_ID=${{ secrets.AZ_CLIENT_ID }}' \
             'AZ_CLIENT_SECRET=${{ secrets.AZ_CLIENT_SECRET }}' \
             'AZ_CONTAINER=${{ secrets.AZ_CONTAINER }}' \
             'AZ_RESOURCE_GROUP=${{ secrets.AZ_RESOURCE_GROUP }}' \
@@ -412,11 +412,7 @@ jobs:
           echo "  - Health check: http://$IP:8000/healthcheck"
           echo ""
           echo "Etat du container:"
-          az container show \\
-            --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \\
-            --name "${{ env.AZURE_CONTAINER_NAME }}" \\
-            --query "{Name:name,State:containers[0].instanceView.currentState.state,IP:ipAddress.ip}" \\
-            --output table
+          az container show --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" --name "${{ env.AZURE_CONTAINER_NAME }}" --query "{Name:name,State:containers[0].instanceView.currentState.state,IP:ipAddress.ip}" --output table
         else
           echo "[!] IP publique pas encore assignee"
           echo "Verifiez dans quelques minutes"
