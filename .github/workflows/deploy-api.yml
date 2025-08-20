@@ -206,11 +206,7 @@ jobs:
         
         echo "[!] Recherche IP du container: $STAGING_NAME"
         
-        STAGING_IP=$(az container show \\
-          --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \\
-          --name ${AZURE_STAGING_CONTAINER} \\
-          --query ipAddress.ip \\
-          --output tsv)
+        STAGING_IP=$(az container show --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --name ${AZURE_STAGING_CONTAINER} --query ipAddress.ip --output tsv)
          
         if [ -z "$STAGING_IP" ] || [ "$STAGING_IP" = "null" ]; then
           echo "[X] Impossible de recuperer l'IP du container staging"
@@ -233,7 +229,7 @@ jobs:
           if [ $i -eq 20 ]; then
             echo "[X] Container staging ne repond pas apres 5 minutes"
             echo "[!] Logs du container pour debug:"
-            az container logs --resource-group "$RESOURCE_GROUP" --name "$STAGING_NAME" || echo "Impossible de recuperer les logs"
+            az container logs --resource-group "$RESOURCE_GROUP" --name "$AZURE_STAGING_CONTAINER" || echo "Impossible de recuperer les logs"
             exit 1
           fi
         done
