@@ -156,31 +156,42 @@ jobs:
         DEPLOYMENT_IMAGE: docker.io/p4x639/p7-tweet-api:latest
       run: |
         echo "[-] Creation du container staging pour tests..."
-        az container create \\
-          --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \\
-          --name ${{ env.AZURE_STAGING_CONTAINER }} \\
-          --image ${DEPLOYMENT_IMAGE} \\
-          --cpu 1 \\
-          --memory 1 \\
-          --os-type Linux \\
-          --restart-policy Always \\
-          --ip-address Public \\
-          --ports 8000 8050 \\
-          --environment-variables \\
-            'PYTHONUNBUFFERED=1' \\
-            'TF_ENABLE_ONEDNN_OPTS=0' \\
-            'ENVIRONMENT=staging' \\
-            'API_HOST=0.0.0.0' \\
-            'API_PORT=8000' \\
-            'DASH_PORT=8050' \\
-            'MODEL_RUN_ID=${{ secrets.MODEL_RUN_ID }}' \\
-            'DAGSHUB_TOKEN=${{ secrets.DAGSHUB_TOKEN }}' \\
-            'DAGSHUB_USERNAME=${{ secrets.DAGSHUB_USERNAME }}' \\
-            'DAGSHUB_REPO=${{ secrets.DAGSHUB_REPO }}' \\
-            'MLFLOW_TRACKING_URI=${{ secrets.MLFLOW_TRACKING_URI }}' \\
-            'AZ_INSTRUMENTATION_KEY=${{ secrets.AZ_INSTRUMENTATION_KEY }}' \\
-            'AZ_CONNECTION_STRING=${{ secrets.AZ_CONNECTION_STRING }}' \\
-            'AZ_WORKPLACE=${{ secrets.AZ_WORKPLACE }}' \\
+        az container create \
+          --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+          --name ${AZURE_STAGING_CONTAINER} \
+          --image ${DEPLOYMENT_IMAGE} \
+          --cpu 1 \
+          --memory 1 \
+          --os-type Linux \
+          --restart-policy Always \
+          --ip-address Public \
+          --ports 8000 8050 \
+          --environment-variables \
+            'PYTHONUNBUFFERED=1' \
+            'TF_ENABLE_ONEDNN_OPTS=0' \
+            'ENVIRONMENT=staging' \
+            'API_HOST=0.0.0.0' \
+            'API_PORT=8000' \
+            'DASH_PORT=8050' \
+            'MODEL_RUN_ID=${{ secrets.MODEL_RUN_ID }}' \
+            'DAGSHUB_TOKEN=${{ secrets.DAGSHUB_TOKEN }}' \
+            'DAGSHUB_USERNAME=${{ secrets.DAGSHUB_USERNAME }}' \
+            'DAGSHUB_REPO=${{ secrets.DAGSHUB_REPO }}' \
+            'MLFLOW_TRACKING_URI=${{ secrets.MLFLOW_TRACKING_URI }}' \
+            'AZ_CLIENT_ID=${{ secrets.AZ_CLIENT_ID }}' \
+            'AZ_CLIENT_SECRET=${{ secrets.AZ_CLIENT_SECRET }}' \
+            'AZ_CONTAINER=${{ secrets.AZ_CONTAINER }}' \
+            'AZ_RESOURCE_GROUP=${{ secrets.AZ_RESOURCE_GROUP }}' \
+            'AZ_REGION=${{ secrets.AZ_REGION }}' \
+            'AZ_SUBSCRIPTION_ID=${{ secrets.AZ_SUBSCRIPTION_ID }}' \
+            'AZ_SUBSCRIPTION_NAME=${{ secrets.AZ_SUBSCRIPTION_NAME }}' \
+            'AZ_TENANT_ID=${{ secrets.AZ_TENANT_ID }}' \
+            'AZ_INSTRUMENTATION_KEY=${{ secrets.AZ_INSTRUMENTATION_KEY }}' \
+            'AZ_CONNECTION_STRING=${{ secrets.AZ_CONNECTION_STRING }}' \
+            'AZ_WORKPLACE=${{ secrets.AZ_WORKPLACE }}' \
+            'SMS_URL=${{ secrets.SMS_URL }}' \
+            'SMS_USER=${{ secrets.SMS_USER }}' \
+            'SMS_PWD=${{ secrets.SMS_PWD }}' \
           --location ${{ env.AZURE_LOCATION }}
         
         echo "[✓] Container staging cree avec succes"
@@ -190,7 +201,7 @@ jobs:
         echo "[-] Attente du demarrage du container staging..."
         STAGING_IP=$(az container show \\
           --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \\
-          --name ${{ env.AZURE_STAGING_CONTAINER }} \\
+          --name ${AZURE_STAGING_CONTAINER} \\
           --query ipAddress.ip \\
           --output tsv)
         
@@ -268,7 +279,7 @@ jobs:
           echo "[X] Tests echoues - suppression du staging"
           az container delete \\
             --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \\
-            --name ${{ env.AZURE_STAGING_CONTAINER }} \\
+            --name ${AZURE_STAGING_CONTAINER} \\
             --yes
           echo "[✓] Container staging supprime"
           echo "DEPLOYMENT_STATUS=failed" >> $GITHUB_ENV
@@ -340,7 +351,6 @@ jobs:
     - name: Create production container
       env:
         DEPLOYMENT_IMAGE: docker.io/p4x639/p7-tweet-api:latest
-        AZURE_STAGING_CONTAINER: ${{ env.AZURE_CONTAINER_NAME }}-staging
       run: |
         echo "[-] Creation du nouveau container production..."
         az container create \\
