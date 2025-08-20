@@ -20,11 +20,11 @@ env:
   DOCKER_TAG: latest
   AZURE_RESOURCE_GROUP: ${{ secrets.AZ_RESOURCE_GROUP }}
   AZURE_CONTAINER_NAME: ${{ secrets.AZ_CONTAINER }}
+  AZURE_STAGING_CONTAINER: ${{ env.AZURE_CONTAINER_NAME }}-staging
   AZURE_LOCATION: ${{ secrets.AZ_REGION }}
   AZ_INSTRUMENTATION_KEY: ${{ secrets.AZ_INSTRUMENTATION_KEY }}
   AZ_CONNECTION_STRING: ${{ secrets.AZ_CONNECTION_STRING }}
   AZ_WORKPLACE: ${{ secrets.AZ_WORKPLACE }}
-
 jobs:
   # Job 1: Build et Push de l'image Docker
   build-and-push:
@@ -111,9 +111,6 @@ jobs:
     name: Staging Tests & Production Switch
     runs-on: ubuntu-latest
     needs: build-and-push
-    
-    env:
-      AZURE_STAGING_CONTAINER: ${{ env.AZURE_CONTAINER_NAME }}-staging
     
     steps:
     - name: Checkout code
