@@ -1,4 +1,6 @@
 # Fichiers et dossiers à exclure de l'image Docker
+*.priv
+.*priv
 
 # Cache Python
 __pycache__/
