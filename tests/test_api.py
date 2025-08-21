@@ -1,7 +1,8 @@
 # scripts de tests unitaires simple pour l'API
 import requests
-import json
 import pytest
+import json
+import os 
 from datetime import datetime
 
 # Configuration de base pour les tests
