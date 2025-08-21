@@ -10,6 +10,7 @@ on:
       - 'docker-compose.yml'
       - 'requirements.txt'
       - '.github/workflows/**'
+      - 'tests/test_api.py'
   
   # Permettre le declenchement manuel depuis l'interface GitHub
   workflow_dispatch:
