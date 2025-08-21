@@ -1,19 +1,38 @@
-# scripts de tests unitaires simple pour l'API
+import os
+import sys
 import requests
-import pytest
 import json
-import os 
+import pytest
 from datetime import datetime
 
-# Configuration de base pour les tests
-API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
+def get_api_base_url():
+    """Récupère l'URL de base de l'API avec plusieurs fallbacks"""
+    # Priorité 1: Variable d'environnement
+    api_url = os.getenv("API_BASE_URL")
+    if api_url:
+        print(f"[!] Utilisation API_BASE_URL: {api_url}")
+        return api_url
+    
+    # Priorité 2: Argument de ligne de commande
+    if len(sys.argv) > 1 and sys.argv[1].startswith("http"):
+        api_url = sys.argv[1]
+        print(f"[!] Utilisation argument CLI: {api_url}")
+        return api_url
+    
+    # Priorité 3: Default localhost
+    api_url = "http://localhost:8000"
+    print(f"[!] Utilisation default: {api_url}")
+    return api_url
+
+API_BASE_URL = get_api_base_url()
 
 class TestAPIBasic:
     """Tests unitaires minimaux pour l'API de sentiment"""
     
     def test_health_endpoint(self):
         """Test que l'endpoint de santé répond correctement"""
-        response = requests.get(f"{API_BASE_URL}/health")
+        print(f"[DEBUG] Test health sur: {API_BASE_URL}")
+        response = requests.get(f"{API_BASE_URL}/health", timeout=30)
         assert response.status_code == 200
         data = response.json()
         assert "status" in data
@@ -24,7 +43,8 @@ class TestAPIBasic:
         test_text = "Amazing service!"
         payload = {"text": test_text, "user_id": "test_user"}
         
-        response = requests.post(f"{API_BASE_URL}/predict", json=payload)
+        print(f"[DEBUG] Test predict sur: {API_BASE_URL}")
+        response = requests.post(f"{API_BASE_URL}/predict", json=payload, timeout=30)
         assert response.status_code == 200
         
         data = response.json()
@@ -43,7 +63,7 @@ class TestAPIBasic:
         
         for case in test_cases:
             payload = {"text": case["text"], "user_id": "test_user"}
-            response = requests.post(f"{API_BASE_URL}/predict", json=payload)
+            response = requests.post(f"{API_BASE_URL}/predict", json=payload, timeout=30)
             
             assert response.status_code == 200
             data = response.json()
@@ -64,7 +84,7 @@ class TestAPIBasic:
             "original_text": "Test text"
         }
         
-        response = requests.post(f"{API_BASE_URL}/feedback", json=feedback_data)
+        response = requests.post(f"{API_BASE_URL}/feedback", json=feedback_data, timeout=30)
         assert response.status_code == 200
         
         data = response.json()
@@ -72,6 +92,5 @@ class TestAPIBasic:
         assert "message" in data
 
 if __name__ == "__main__":
-    # Exécution des tests
-    print(f"[!] Tests executés sur: {API_BASE_URL}")
+    print(f"[!] Tests exécutés contre: {API_BASE_URL}")
     pytest.main([__file__, "-v"])
